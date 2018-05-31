@@ -53,7 +53,15 @@ col_flag =['FLAG_MOBIL', 'FLAG_EMP_PHONE', 'FLAG_WORK_PHONE', 'FLAG_CONT_MOBILE'
 
 def main():
     # 元データをロード
-    df_raw = pd.read_csv('application_train.csv')
+    df_train = pd.read_csv('application_train.csv')
+    df_test = pd.read_csv('application_test.csv')
+
+    df_train['IS_TEST']=False
+    df_test['IS_TEST']=True
+    df_test['TARGET'] = np.nan
+
+    df_raw=pd.concat([df_train, df_test])
+    df_raw.index = df_raw.SK_ID_CURR
 
     # 種類別にデータを分割
     df_numeric = df_raw[col_numeric]
@@ -78,17 +86,22 @@ def main():
     df = pd.concat([df_numeric, df_category, df_flag], axis=1)
 
     # 二値データの項目を数値へ変換
-    df['NAME_CONTRACT_TYPE'] = df_raw.NAME_CONTRACT_TYPE.map(NAME_CONTRACT_TYPE_MAP)
-    df['CODE_GENDER'] = df_raw.CODE_GENDER.map(CODE_GENDER_MAP)
-    df['FLAG_OWN_CAR'] = df_raw.FLAG_OWN_CAR.map(FLAG_OWN_XXX_MAP)
-    df['FLAG_OWN_REALTY'] = df_raw.FLAG_OWN_REALTY.map(FLAG_OWN_XXX_MAP)
-    df['EMERGENCYSTATE_MODE'] = df_raw.EMERGENCYSTATE_MODE.map(EMERGENCYSTATE_MODE_MAP)
+    df['NAME_CONTRACT_TYPE'] = df_raw.NAME_CONTRACT_TYPE.map(NAME_CONTRACT_TYPE_MAP).fillna(0)
+    df['CODE_GENDER'] = df_raw.CODE_GENDER.map(CODE_GENDER_MAP).fillna(0)
+    df['FLAG_OWN_CAR'] = df_raw.FLAG_OWN_CAR.map(FLAG_OWN_XXX_MAP).fillna(0)
+    df['FLAG_OWN_REALTY'] = df_raw.FLAG_OWN_REALTY.map(FLAG_OWN_XXX_MAP).fillna(0)
+    df['EMERGENCYSTATE_MODE'] = df_raw.EMERGENCYSTATE_MODE.map(EMERGENCYSTATE_MODE_MAP).fillna(0)
 
     df['label']=df_raw['TARGET']
-    df = df.dropna()
+    df['IS_TEST']=df_raw['IS_TEST']
+
+    # split train & test data
+    df_train = df[df['IS_TEST']==False]
+    df_test = df[df['IS_TEST']==True]
 
     # save data
-    df.to_hdf('db.h5', key='data')
+    df_train.to_hdf('db.h5', key='train')
+    df_test.to_hdf('db.h5', key='test')
 
     return df
 

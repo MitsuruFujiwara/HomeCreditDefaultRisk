@@ -28,10 +28,10 @@ def autoencoder(encoding_dim, decoding_dim, activation, X, nb_epoch):
 
 def main():
     # load Data
-    df = pd.read_hdf('db.h5', key='data', mode='r')
+    df = pd.read_hdf('db.h5', key='test', mode='r')
 
     # set data
-    trX = [np.array(df.drop('label', axis=1))]
+    trX = [np.array(df.drop(['label', 'IS_TEST'], axis=1))]
 
     # set dimension of model
     dim = [226, 300, 300, 1]
