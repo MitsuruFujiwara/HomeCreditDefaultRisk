@@ -24,7 +24,7 @@ def main():
     sub_dnn = pd.DataFrame()
     sub_dnn['SK_ID_CURR'] = df.index.tolist()
     sub_dnn['TARGET'] = predict
-    sub_dnn.to_csv("sub_dnn_v2.csv", index=False)
+    sub_dnn.to_csv("sub_dnn_v3.csv", index=False)
 
     return sub_dnn
 

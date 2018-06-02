@@ -50,6 +50,24 @@ col_flag =['FLAG_MOBIL', 'FLAG_EMP_PHONE', 'FLAG_WORK_PHONE', 'FLAG_CONT_MOBILE'
            'FLAG_DOCUMENT_16', 'FLAG_DOCUMENT_17', 'FLAG_DOCUMENT_18', 'FLAG_DOCUMENT_19',
            'FLAG_DOCUMENT_20', 'FLAG_DOCUMENT_21']
 
+def bureau_preprocessing():
+    """
+    bureau.csvの加工用
+    """
+
+    # load dataset
+    df_bureau = pd.read_csv('bureau.csv')
+
+    # IDごとの平均値を集計
+    df_bureau = df_bureau.groupby('SK_ID_CURR').mean()
+
+    # ID列を削除
+    df_bureau = df_bureau.drop('SK_ID_BUREAU', axis=1)
+
+    # カラム名を変更
+    df_bureau.columns = ['bureau_' + c for c in df_bureau.columns]
+
+    return df_bureau
 
 def main():
     # 元データをロード
@@ -64,10 +82,15 @@ def main():
     df_raw.index = df_raw.SK_ID_CURR
 
     # 種類別にデータを分割
-    df_numeric = df_raw[col_numeric]
+    df_numeric = df_raw[col_numeric + ['SK_ID_CURR']]
     df_category = df_raw[col_category]
     df_flag = df_raw[col_flag]
 
+    # bureauデータと結合
+    df_bureau=bureau_preprocessing()
+    df_numeric = df_numeric.merge(right=df_bureau.reset_index(), how='left', on='SK_ID_CURR')
+    df_numeric.index = df_numeric['SK_ID_CURR']
+    df_numeric = df_numeric.drop('SK_ID_CURR', axis=1)
 
     # 数値形式のデータの欠損値を平均で補間
     df_numeric = df_numeric.fillna(df_numeric.mean())
@@ -102,6 +125,7 @@ def main():
     # save data
     df_train.to_hdf('db.h5', key='train')
     df_test.to_hdf('db.h5', key='test')
+    df.to_hdf('db.h5', key='all')
 
     return df
 
