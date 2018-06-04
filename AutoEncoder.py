@@ -29,17 +29,18 @@ def autoencoder(encoding_dim, decoding_dim, activation, X, nb_epoch):
 def main():
     # load Data
     df = pd.read_hdf('db.h5', key='train', mode='r')
+    df = df.dropna()
 
     # set data
     trX = [np.array(df.drop(['label', 'IS_TEST'], axis=1))]
 
     # set dimension of model
-    dim = [238, 300, 300, 1]
+    dim = [252, 1000, 1000, 1000, 1]
 
     for i, t in enumerate(dim[:-1]):
         _X = trX[i]
         # fit autoencoder
-        e = autoencoder(t, dim[i+1], 'relu', _X, 100)
+        e = autoencoder(t, dim[i+1], 'relu', _X, 10)
 
         # save fitted encoder
         e.save('encoder' + str(i) + '.h5')

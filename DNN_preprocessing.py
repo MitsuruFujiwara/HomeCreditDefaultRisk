@@ -50,16 +50,19 @@ col_flag =['FLAG_MOBIL', 'FLAG_EMP_PHONE', 'FLAG_WORK_PHONE', 'FLAG_CONT_MOBILE'
            'FLAG_DOCUMENT_16', 'FLAG_DOCUMENT_17', 'FLAG_DOCUMENT_18', 'FLAG_DOCUMENT_19',
            'FLAG_DOCUMENT_20', 'FLAG_DOCUMENT_21']
 
-def bureau_preprocessing():
+def bureau_preprocessing(filepath):
     """
     bureau.csvの加工用
     """
 
     # load dataset
-    df_bureau = pd.read_csv('bureau.csv')
+    bureau = pd.read_csv(filepath)
 
     # IDごとの平均値を集計
-    df_bureau = df_bureau.groupby('SK_ID_CURR').mean()
+    df_bureau = bureau.groupby('SK_ID_CURR').mean()
+
+    # データ数の列を追加
+    df_bureau['count'] = bureau.groupby('SK_ID_CURR').count()['SK_ID_BUREAU']
 
     # ID列を削除
     df_bureau = df_bureau.drop('SK_ID_BUREAU', axis=1)
@@ -68,6 +71,28 @@ def bureau_preprocessing():
     df_bureau.columns = ['bureau_' + c for c in df_bureau.columns]
 
     return df_bureau
+
+def previous_application_preprocessing(filepath):
+    """
+    previous_application.csvの加工用
+    """
+
+    # load dataset
+    pre_app = pd.read_csv('previous_application.csv')
+
+    # IDごとの平均値を集計
+    df_pre_app = pre_app.groupby('SK_ID_CURR').mean()
+
+    # データ数の列を追加
+    df_pre_app['count'] = pre_app.groupby('SK_ID_CURR').count()['SK_ID_PREV']
+
+    # 旧ID列を削除
+    df_pre_app = df_pre_app.drop('SK_ID_PREV', axis=1)
+
+    # カラム名を変更
+    df_pre_app.columns = ['pre_app_' + c for c in df_pre_app.columns]
+
+    return df_pre_app
 
 def main():
     # 元データをロード
@@ -87,9 +112,15 @@ def main():
     df_flag = df_raw[col_flag]
 
     # bureauデータと結合
-    df_bureau=bureau_preprocessing()
+    df_bureau=bureau_preprocessing('bureau.csv')
     df_numeric = df_numeric.merge(right=df_bureau.reset_index(), how='left', on='SK_ID_CURR')
     df_numeric.index = df_numeric['SK_ID_CURR']
+
+    # previous_applicationデータと結合
+    df_pre_app=previous_application_preprocessing('previous_application.csv')
+    df_numeric = df_numeric.merge(right=df_bureau.reset_index(), how='left', on='SK_ID_CURR')
+    df_numeric.index = df_numeric['SK_ID_CURR']
+
     df_numeric = df_numeric.drop('SK_ID_CURR', axis=1)
 
     # 数値形式のデータの欠損値を平均で補間
