@@ -9,18 +9,23 @@ from keras.layers import Dense, Activation
 from keras.layers.core import Dropout
 from keras.regularizers import l2
 
+from roc_callback import roc_callback
+
 def _model():
     model = Sequential()
-    model.add(Dense(output_dim=1000, input_dim=238, W_regularizer=l2(0.0001)))
+    model.add(Dense(output_dim=1000, input_dim=252, W_regularizer=l2(0.001)))
     model.add(Activation('relu'))
     model.add(Dropout(0.8))
-    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.0001)))
+    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.001)))
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.0001)))
+    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.001)))
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(output_dim=1, input_dim=1000, W_regularizer=l2(0.0001)))
+    model.add(Dense(output_dim=500, input_dim=1000, W_regularizer=l2(0.001)))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(output_dim=1, input_dim=500, W_regularizer=l2(0.001)))
     model.add(Activation('sigmoid'))
     return model
 
@@ -63,10 +68,13 @@ def main():
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     # training
-    history = model.fit(x_train, y_train, nb_epoch=5, verbose=1, validation_data=(x_val, y_val))
+    history = model.fit(x_train, y_train, nb_epoch=50, verbose=1,
+                        validation_data=(x_val, y_val),
+                        callbacks=[roc_callback(training_data=(x_train, y_train),
+                        validation_data=(x_val, y_val))])
 
     # save model
-    model.save('DNN_v2.h5')
+    model.save('DNN_v3.h5')
 
     # summarize history for accuracy
     plt.plot(history.history['acc'])

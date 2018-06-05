@@ -94,7 +94,7 @@ def previous_application_preprocessing(filepath):
 
     return df_pre_app
 
-def main():
+def getData(fillnan=True):
     # 元データをロード
     df_train = pd.read_csv('application_train.csv')
     df_test = pd.read_csv('application_test.csv')
@@ -161,4 +161,5 @@ def main():
     return df
 
 if __name__ == '__main__':
-    main()
+    df=getData()
+    print(df)

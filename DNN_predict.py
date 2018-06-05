@@ -14,7 +14,7 @@ def main():
     X = [np.array(df.drop(['label', 'IS_TEST'], axis=1))]
 
     # load model
-    model = load_model('DNN_v2.h5')
+    model = load_model('DNN_v3.h5')
 
     # compile
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -24,7 +24,7 @@ def main():
     sub_dnn = pd.DataFrame()
     sub_dnn['SK_ID_CURR'] = df.index.tolist()
     sub_dnn['TARGET'] = predict
-    sub_dnn.to_csv("sub_dnn_v5.csv", index=False)
+    sub_dnn.to_csv("sub_dnn_v7.csv", index=False)
 
     return sub_dnn
 

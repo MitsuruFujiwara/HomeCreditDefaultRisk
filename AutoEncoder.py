@@ -35,12 +35,12 @@ def main():
     trX = [np.array(df.drop(['label', 'IS_TEST'], axis=1))]
 
     # set dimension of model
-    dim = [252, 1000, 1000, 1000, 1]
+    dim = [252, 1000, 1000, 1000, 500, 1]
 
     for i, t in enumerate(dim[:-1]):
         _X = trX[i]
         # fit autoencoder
-        e = autoencoder(t, dim[i+1], 'relu', _X, 10)
+        e = autoencoder(t, dim[i+1], 'relu', _X, 50)
 
         # save fitted encoder
         e.save('encoder' + str(i) + '.h5')
