@@ -94,7 +94,7 @@ def previous_application_preprocessing(filepath):
 
     return df_pre_app
 
-def getData(fillnan=True):
+def getData(fillnan=True, savedata=True):
     # 元データをロード
     df_train = pd.read_csv('application_train.csv')
     df_test = pd.read_csv('application_test.csv')
@@ -123,15 +123,17 @@ def getData(fillnan=True):
 
     df_numeric = df_numeric.drop('SK_ID_CURR', axis=1)
 
-    # 数値形式のデータの欠損値を平均で補間
-    df_numeric = df_numeric.fillna(df_numeric.mean())
+    # 欠損値の補間を行う場合の処理
+    if fillnan:
+        # 数値形式のデータの欠損値を平均で補間
+        df_numeric = df_numeric.fillna(df_numeric.mean())
 
-    # 標準化
-    stdsc = StandardScaler()
-    df_numeric = pd.DataFrame(stdsc.fit_transform(df_numeric), columns=df_numeric.columns, index=df_numeric.index)
+        # 標準化
+        stdsc = StandardScaler()
+        df_numeric = pd.DataFrame(stdsc.fit_transform(df_numeric), columns=df_numeric.columns, index=df_numeric.index)
 
-    # StandardScalerを保存
-    joblib.dump(stdsc, 'standardscaler.pkl')
+        # StandardScalerを保存
+        joblib.dump(stdsc, 'standardscaler.pkl')
 
     # ダミー変数の生成
     df_category = pd.get_dummies(df_category, drop_first=True)
@@ -140,23 +142,28 @@ def getData(fillnan=True):
     df = pd.concat([df_numeric, df_category, df_flag], axis=1)
 
     # 二値データの項目を数値へ変換
-    df['NAME_CONTRACT_TYPE'] = df_raw.NAME_CONTRACT_TYPE.map(NAME_CONTRACT_TYPE_MAP).fillna(0)
-    df['CODE_GENDER'] = df_raw.CODE_GENDER.map(CODE_GENDER_MAP).fillna(0)
-    df['FLAG_OWN_CAR'] = df_raw.FLAG_OWN_CAR.map(FLAG_OWN_XXX_MAP).fillna(0)
-    df['FLAG_OWN_REALTY'] = df_raw.FLAG_OWN_REALTY.map(FLAG_OWN_XXX_MAP).fillna(0)
-    df['EMERGENCYSTATE_MODE'] = df_raw.EMERGENCYSTATE_MODE.map(EMERGENCYSTATE_MODE_MAP).fillna(0)
+    df['NAME_CONTRACT_TYPE'] = df_raw.NAME_CONTRACT_TYPE.map(NAME_CONTRACT_TYPE_MAP)
+    df['CODE_GENDER'] = df_raw.CODE_GENDER.map(CODE_GENDER_MAP)
+    df['FLAG_OWN_CAR'] = df_raw.FLAG_OWN_CAR.map(FLAG_OWN_XXX_MAP)
+    df['FLAG_OWN_REALTY'] = df_raw.FLAG_OWN_REALTY.map(FLAG_OWN_XXX_MAP)
+    df['EMERGENCYSTATE_MODE'] = df_raw.EMERGENCYSTATE_MODE.map(EMERGENCYSTATE_MODE_MAP)
+
+    # 欠損値の補間が必要な場合
+    if fillnan:
+        df[['NAME_CONTRACT_TYPE', 'CODE_GENDER', 'FLAG_OWN_CAR', 'FLAG_OWN_REALTY', 'EMERGENCYSTATE_MODE']].fillna(0)
 
     df['label']=df_raw['TARGET']
     df['IS_TEST']=df_raw['IS_TEST']
 
     # split train & test data
-    df_train = df[df['IS_TEST']==False]
-    df_test = df[df['IS_TEST']==True]
+    df_train = df[-df['IS_TEST']]
+    df_test = df[df['IS_TEST']]
 
     # save data
-    df_train.to_hdf('db.h5', key='train')
-    df_test.to_hdf('db.h5', key='test')
-    df.to_hdf('db.h5', key='all')
+    if savedata:
+        df_train.to_hdf('db.h5', key='train')
+        df_test.to_hdf('db.h5', key='test')
+        df.to_hdf('db.h5', key='all')
 
     return df
 
