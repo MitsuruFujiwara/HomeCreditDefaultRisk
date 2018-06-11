@@ -94,7 +94,7 @@ def previous_application_preprocessing(filepath):
 
     return df_pre_app
 
-def getData(fillnan=True, savedata=True):
+def getData(fillnan=True, savedata=True, use_factorize=False):
     # 元データをロード
     df_train = pd.read_csv('application_train.csv')
     df_test = pd.read_csv('application_test.csv')
@@ -135,18 +135,33 @@ def getData(fillnan=True, savedata=True):
         # StandardScalerを保存
         joblib.dump(stdsc, 'standardscaler.pkl')
 
-    # ダミー変数の生成
-    df_category = pd.get_dummies(df_category, drop_first=True)
+    # カテゴリーデータ項目の処理
+    if use_factorize:
+        # factorizeする場合の処理
+        for c in df_category.columns:
+            df_category[c], _ = pd.factorize(df_category[c])
+    else:
+        # factorizeしない場合は普通にダミー変数を生成する
+        df_category = pd.get_dummies(df_category, drop_first=True)
 
     # データを結合
     df = pd.concat([df_numeric, df_category, df_flag], axis=1)
 
-    # 二値データの項目を数値へ変換
-    df['NAME_CONTRACT_TYPE'] = df_raw.NAME_CONTRACT_TYPE.map(NAME_CONTRACT_TYPE_MAP)
-    df['CODE_GENDER'] = df_raw.CODE_GENDER.map(CODE_GENDER_MAP)
-    df['FLAG_OWN_CAR'] = df_raw.FLAG_OWN_CAR.map(FLAG_OWN_XXX_MAP)
-    df['FLAG_OWN_REALTY'] = df_raw.FLAG_OWN_REALTY.map(FLAG_OWN_XXX_MAP)
-    df['EMERGENCYSTATE_MODE'] = df_raw.EMERGENCYSTATE_MODE.map(EMERGENCYSTATE_MODE_MAP)
+    # 二値データ項目の処理
+    if use_factorize:
+        # factorizeする場合は二値データの項目もfactorizeする
+        df['NAME_CONTRACT_TYPE'], _ = pd.factorize(df_raw['NAME_CONTRACT_TYPE'])
+        df['CODE_GENDER'], _ = pd.factorize(df_raw['CODE_GENDER'])
+        df['FLAG_OWN_CAR'], _ = pd.factorize(df_raw['FLAG_OWN_CAR'])
+        df['FLAG_OWN_REALTY'], _ = pd.factorize(df_raw['FLAG_OWN_REALTY'])
+        df['EMERGENCYSTATE_MODE'], _ = pd.factorize(df_raw['EMERGENCYSTATE_MODE'])
+    else:
+        # factorizeしない場合は普通に数値へ変換
+        df['NAME_CONTRACT_TYPE'] = df_raw.NAME_CONTRACT_TYPE.map(NAME_CONTRACT_TYPE_MAP)
+        df['CODE_GENDER'] = df_raw.CODE_GENDER.map(CODE_GENDER_MAP)
+        df['FLAG_OWN_CAR'] = df_raw.FLAG_OWN_CAR.map(FLAG_OWN_XXX_MAP)
+        df['FLAG_OWN_REALTY'] = df_raw.FLAG_OWN_REALTY.map(FLAG_OWN_XXX_MAP)
+        df['EMERGENCYSTATE_MODE'] = df_raw.EMERGENCYSTATE_MODE.map(EMERGENCYSTATE_MODE_MAP)
 
     # 欠損値の補間が必要な場合
     if fillnan:
@@ -168,5 +183,5 @@ def getData(fillnan=True, savedata=True):
     return df
 
 if __name__ == '__main__':
-    df=getData()
+    df=getData(fillnan=False, savedata=False, use_factorize=True)
     print(df)
