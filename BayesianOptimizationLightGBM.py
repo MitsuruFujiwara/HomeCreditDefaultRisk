@@ -8,7 +8,7 @@ from LightGBM_with_Simple_Features import bureau_and_balance, previous_applicati
 # https://github.com/fmfn/BayesianOptimization
 # https://www.kaggle.com/tilii7/olivier-lightgbm-parameters-by-bayesian-opt/code
 
-NUM_ROWS=10000
+NUM_ROWS=None
 
 # ベストスコアのカーネルと同じ特徴量を使います
 BUREAU = bureau_and_balance(NUM_ROWS)
@@ -32,7 +32,10 @@ TEST_DF = DF[DF['TARGET'].isnull()]
 
 # set
 lgbm_train = lightgbm.Dataset(TRAIN_DF.drop('TARGET', axis=1),
-                              TRAIN_DF['TARGET'])
+                              TRAIN_DF['TARGET'],
+                              silent=-1,
+                              free_raw_data=False
+                              )
 
 def lgbm_eval(num_leaves,
               colsample_bytree,
@@ -58,14 +61,16 @@ def lgbm_eval(num_leaves,
     params['reg_lambda'] = max(reg_lambda, 0)
     params['min_split_gain'] = min_split_gain
     params['min_child_weight'] = min_child_weight
+    params['verbose']=-1
 
     clf = lightgbm.cv(params=params,
                       train_set=lgbm_train,
                       metrics=["auc"],
                       folds=None,
-                      num_boost_round=5,
-                      early_stopping_rounds=10,
-                      verbose_eval=1
+                      num_boost_round=10000, # early stopありなのでここは大きめの数字にしてます
+                      early_stopping_rounds=100,
+                      verbose_eval=1,
+                      seed=21,
                      )
 
     return clf['auc-mean'][-1]
@@ -83,9 +88,10 @@ def main():
                                               'min_child_weight': (30, 45),
                                             })
 
-    clf_bo.maximize(init_points=4, n_iter=20)
+    clf_bo.maximize(init_points=15, n_iter=25)
 
-    print(clf_bo['max']['max_val'])
+    res = pd.DataFrame(clf_bo.res['max']['max_params'], index=['max_params'])
+    res.to_csv('max_params.csv')
 
 if __name__ == '__main__':
     main()
