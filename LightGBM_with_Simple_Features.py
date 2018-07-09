@@ -122,14 +122,14 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
     active = bureau[bureau['CREDIT_ACTIVE_Active'] == 1]
     active_agg = active.groupby('SK_ID_CURR').agg(num_aggregations)
     active_agg.columns = pd.Index(['ACTIVE_' + e[0] + "_" + e[1].upper() for e in active_agg.columns.tolist()])
-    bureau_agg = bureau_agg.join(active_agg, how='left', on='SK_ID_CURR') # 自分の環境でエラーが出るのでon='SK_ID_CURR'を消しました
+    bureau_agg = bureau_agg.join(active_agg, how='left', on='SK_ID_CURR')
     del active, active_agg
     gc.collect()
     # Bureau: Closed credits - using only numerical aggregations
     closed = bureau[bureau['CREDIT_ACTIVE_Closed'] == 1]
     closed_agg = closed.groupby('SK_ID_CURR').agg(num_aggregations)
     closed_agg.columns = pd.Index(['CLOSED_' + e[0] + "_" + e[1].upper() for e in closed_agg.columns.tolist()])
-    bureau_agg = bureau_agg.join(closed_agg, how='left', on='SK_ID_CURR') # 自分の環境でエラーが出るのでon='SK_ID_CURR'を消しました
+    bureau_agg = bureau_agg.join(closed_agg, how='left', on='SK_ID_CURR')
     del closed, closed_agg, bureau
     gc.collect()
     return bureau_agg
@@ -277,18 +277,18 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
             nthread=4,
             n_estimators=10000,
             learning_rate=0.02,
-            num_leaves=32,
-            colsample_bytree=0.9497036,
-            subsample=0.8715623,
-            max_depth=8,
-            reg_alpha=0.04,
-            reg_lambda=0.073,
-            min_split_gain=0.0222415,
-            min_child_weight=40,
+            num_leaves=36,
+            colsample_bytree=0.1308576193,
+            subsample=0.1300659983,
+            max_depth=13,
+            reg_alpha=8.9365217132,
+            reg_lambda=7.6460793379,
+            min_split_gain=0.0593017859,
+            min_child_weight=31,
             silent=-1,
-            verbose=-1
-#           n_jobs+4
-#            random_state = xxx　たぶんここで乱数調整の余地あり
+            verbose=-1,
+            n_jobs=4,
+            random_state = 0 #たぶんここで乱数調整の余地あり
             )
 
         clf.fit(train_x, train_y, eval_set=[(train_x, train_y), (valid_x, valid_y)],
