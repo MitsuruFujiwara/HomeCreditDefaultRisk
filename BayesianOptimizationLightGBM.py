@@ -45,6 +45,7 @@ def lgbm_eval(num_leaves,
               reg_lambda,
               min_split_gain,
               min_child_weight,
+              min_data_in_leaf
              ):
 
     params = dict()
@@ -61,6 +62,7 @@ def lgbm_eval(num_leaves,
     params['reg_lambda'] = max(reg_lambda, 0)
     params['min_split_gain'] = min_split_gain
     params['min_child_weight'] = min_child_weight
+    params['min_data_in_leaf'] = int(min_data_in_leaf)
     params['verbose']=-1
 
     clf = lightgbm.cv(params=params,
