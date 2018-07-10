@@ -66,11 +66,12 @@ def lgbm_eval(num_leaves,
     clf = lightgbm.cv(params=params,
                       train_set=lgbm_train,
                       metrics=["auc"],
+                      nfold=5,
                       folds=None,
                       num_boost_round=10000, # early stopありなのでここは大きめの数字にしてます
-                      early_stopping_rounds=100,
-                      verbose_eval=1,
-                      seed=21,
+                      early_stopping_rounds=200,
+                      verbose_eval=100,
+                      seed=47,
                      )
 
     return clf['auc-mean'][-1]
@@ -78,20 +79,21 @@ def lgbm_eval(num_leaves,
 def main():
 
     # clf for bayesian optimization
-    clf_bo = BayesianOptimization(lgbm_eval, {'num_leaves': (30, 45),
-                                              'colsample_bytree': (0.1, 1),
-                                              'subsample': (0.1, 1),
-                                              'max_depth': (5, 15),
+    clf_bo = BayesianOptimization(lgbm_eval, {'num_leaves': (32, 512),
+                                              'colsample_bytree': (0.001, 1),
+                                              'subsample': (0.001, 1),
+                                              'max_depth': (5, 10),
                                               'reg_alpha': (0, 10),
                                               'reg_lambda': (0, 10),
                                               'min_split_gain': (0, 1),
-                                              'min_child_weight': (30, 45),
+                                              'min_child_weight': (0, 45),
+                                              'min_data_in_leaf': (0, 1000),
                                             })
 
     clf_bo.maximize(init_points=15, n_iter=25)
 
     res = pd.DataFrame(clf_bo.res['max']['max_params'], index=['max_params'])
-    res.to_csv('max_params.csv')
+    res.to_csv('max_params2.csv')
 
 if __name__ == '__main__':
     main()
