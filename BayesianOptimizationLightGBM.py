@@ -33,7 +33,6 @@ TEST_DF = DF[DF['TARGET'].isnull()]
 # set
 lgbm_train = lightgbm.Dataset(TRAIN_DF.drop('TARGET', axis=1),
                               TRAIN_DF['TARGET'],
-                              silent=-1,
                               free_raw_data=False
                               )
 

@@ -259,9 +259,9 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
     gc.collect()
     # Cross validation model
     if stratified:
-        folds = StratifiedKFold(n_splits= num_folds, shuffle=True, random_state=21)
+        folds = StratifiedKFold(n_splits= num_folds, shuffle=True, random_state=47)
     else:
-        folds = KFold(n_splits= num_folds, shuffle=True, random_state=21)
+        folds = KFold(n_splits= num_folds, shuffle=True, random_state=47)
     # Create arrays and dataframes to store results
     oof_preds = np.zeros(train_df.shape[0])
     sub_preds = np.zeros(test_df.shape[0])
@@ -277,14 +277,15 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
             nthread=4,
             n_estimators=10000,
             learning_rate=0.02,
-            num_leaves=36,
-            colsample_bytree=0.1308576193,
-            subsample=0.1300659983,
-            max_depth=13,
-            reg_alpha=8.9365217132,
-            reg_lambda=7.6460793379,
-            min_split_gain=0.0593017859,
-            min_child_weight=31,
+            num_leaves=510,
+            colsample_bytree=0.1417420324,
+            subsample=0.9559916094,
+            max_depth=7,
+            reg_alpha=7.818042399,
+            reg_lambda=3.1091970455,
+            min_split_gain=0.498413589,
+            min_child_weight=43,
+            min_data_in_leaf=997,
             silent=-1,
             verbose=-1,
             n_jobs=4,
@@ -358,9 +359,9 @@ def main(debug = False):
         del cc
         gc.collect()
     with timer("Run LightGBM with kfold"):
-        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified= False, debug= debug)
+        feat_importance = kfold_lightgbm(df, num_folds= 10, stratified= False, debug= debug)
 
 if __name__ == "__main__":
-    submission_file_name = "submission_kernel02.csv"
+    submission_file_name = "submission_num_folds5_seed47.csv"
     with timer("Full model run"):
         main()
