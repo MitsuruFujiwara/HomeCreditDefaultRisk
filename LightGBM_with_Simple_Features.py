@@ -65,6 +65,14 @@ def application_train_test(num_rows = None, nan_as_category = False):
     df['NEW_PHONE_TO_BIRTH_RATIO'] = df['DAYS_LAST_PHONE_CHANGE'] / df['DAYS_EMPLOYED']
     df['NEW_CREDIT_TO_INCOME_RATIO'] = df['AMT_CREDIT'] / df['AMT_INCOME_TOTAL']
 
+    # ここから追加したやつ
+    df['NEW_EXT_SOURCE_RATIO12'] = df['EXT_SOURCE_1'] / df['EXT_SOURCE_2']
+    df['NEW_EXT_SOURCE_RATIO23'] = df['EXT_SOURCE_2'] / df['EXT_SOURCE_3']
+    df['NEW_EXT_SOURCE_RATIO31'] = df['EXT_SOURCE_3'] / df['EXT_SOURCE_1']
+    df['NEW_INCOME_TO_BIRTH_RATIO'] = df['AMT_INCOME_TOTAL'] / df['DAYS_BIRTH']
+    df['NEW_ANNUITY_TO_BIRTH_RATIO'] = df['AMT_ANNUITY'] / df['DAYS_BIRTH']
+    df['NEW_CREDIT_TO_BIRTH_RATIO'] = df['AMT_CREDIT'] / df['DAYS_BIRTH']
+
     # Categorical features with Binary encode (0 or 1; two categories)
     for bin_feature in ['CODE_GENDER', 'FLAG_OWN_CAR', 'FLAG_OWN_REALTY']:
         df[bin_feature], uniques = pd.factorize(df[bin_feature])
@@ -359,9 +367,9 @@ def main(debug = False):
         del cc
         gc.collect()
     with timer("Run LightGBM with kfold"):
-        feat_importance = kfold_lightgbm(df, num_folds= 10, stratified= False, debug= debug)
+        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified= False, debug= debug)
 
 if __name__ == "__main__":
-    submission_file_name = "submission_num_folds5_seed47.csv"
+    submission_file_name = "submission_add_feature_v2.csv"
     with timer("Full model run"):
         main()
