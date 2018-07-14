@@ -338,7 +338,7 @@ def display_importances(feature_importance_df_):
     plt.tight_layout()
     plt.savefig('lgbm_importances01.png')
 
-def main(debug = True):
+def main(debug = False):
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
     with timer("Process bureau and bureau_balance"):
@@ -372,6 +372,12 @@ def main(debug = True):
         del cc
         gc.collect()
     with timer("Run LightGBM with kfold"):
+        # 不要なカラムを落とす処理を追加
+        dropcolumns=pd.read_csv('feature_importance_to_use.csv')
+        dropcolumns = dropcolumns[dropcolumns['importance']==0]['feature'].tolist()
+        dropcolumns = [d for d in dropcolumns if d in df.columns.tolist()]
+
+        df = df.drop(dropcolumns, axis=1)
         feat_importance = kfold_lightgbm(df, num_folds= 5, stratified= False, debug= debug)
 
 if __name__ == "__main__":
