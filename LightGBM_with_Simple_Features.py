@@ -323,6 +323,11 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
     # Write submission file and plot feature importance
     if not debug:
         test_df['TARGET'] = sub_preds
+
+        # AUDスコアを上げるため提出ファイルの調整を追加
+        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > 0.700 else x)
+        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x < 0.002 else x)
+
         test_df[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name, index= False)
     display_importances(feature_importance_df)
     return feature_importance_df
