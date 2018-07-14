@@ -373,8 +373,8 @@ def main(debug = False):
         gc.collect()
     with timer("Run LightGBM with kfold"):
         # 不要なカラムを落とす処理を追加
-        dropcolumns=pd.read_csv('feature_importance_to_use.csv')
-        dropcolumns = dropcolumns[dropcolumns['importance']==0]['feature'].tolist()
+        dropcolumns=pd.read_csv('feature_importance_not_to_use.csv')
+        dropcolumns = dropcolumns['feature'].tolist()
         dropcolumns = [d for d in dropcolumns if d in df.columns.tolist()]
 
         df = df.drop(dropcolumns, axis=1)
