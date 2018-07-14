@@ -221,6 +221,9 @@ def installments_payments(num_rows = None, nan_as_category = True):
     ins['DBD'] = ins['DAYS_INSTALMENT'] - ins['DAYS_ENTRY_PAYMENT']
     ins['DPD'] = ins['DPD'].apply(lambda x: x if x > 0 else 0)
     ins['DBD'] = ins['DBD'].apply(lambda x: x if x > 0 else 0)
+    # 追加しました
+    ins['instalment_dummy'] = 1 if ins['NUM_INSTALMENT_VERSION'] == 0 else 0
+    ins['DAYS_PERC'] = ins['DAYS_ENTRY_PAYMENT']*1.0 / ins['DAYS_INSTALMENT']
     # Features: Perform aggregations
     aggregations = {
         'NUM_INSTALMENT_VERSION': ['nunique'],
@@ -228,6 +231,7 @@ def installments_payments(num_rows = None, nan_as_category = True):
         'DBD': ['max', 'mean', 'sum'],
         'PAYMENT_PERC': [ 'mean',  'var'],
         'PAYMENT_DIFF': [ 'mean', 'var'],
+        'DAYS_PERC': [ 'mean', 'var'],
         'AMT_INSTALMENT': ['max', 'mean', 'sum'],
         'AMT_PAYMENT': ['min', 'max', 'mean', 'sum'],
         'DAYS_ENTRY_PAYMENT': ['max', 'mean', 'sum']
