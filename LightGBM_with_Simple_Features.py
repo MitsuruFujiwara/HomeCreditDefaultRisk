@@ -222,7 +222,7 @@ def installments_payments(num_rows = None, nan_as_category = True):
     ins['DPD'] = ins['DPD'].apply(lambda x: x if x > 0 else 0)
     ins['DBD'] = ins['DBD'].apply(lambda x: x if x > 0 else 0)
     # 追加しました
-    ins['instalment_dummy'] = 1 if ins['NUM_INSTALMENT_VERSION'] == 0 else 0
+    ins['instalment_dummy'] = ins['NUM_INSTALMENT_VERSION'].map(lambda x:1 if x==0 else 0)
     ins['DAYS_PERC'] = ins['DAYS_ENTRY_PAYMENT']*1.0 / ins['DAYS_INSTALMENT']
     # Features: Perform aggregations
     aggregations = {
