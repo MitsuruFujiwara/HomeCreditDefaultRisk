@@ -327,13 +327,18 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
 def display_importances(feature_importance_df_):
     cols = feature_importance_df_[["feature", "importance"]].groupby("feature").mean().sort_values(by="importance", ascending=False)[:40].index
     best_features = feature_importance_df_.loc[feature_importance_df_.feature.isin(cols)]
+
+    # importance下位の確認用に追加しました
+    _feature_importance_df_=feature_importance_df_.groupby('feature').sum()
+    _feature_importance_df_.to_csv("feature_importance.csv")
+
     plt.figure(figsize=(8, 10))
     sns.barplot(x="importance", y="feature", data=best_features.sort_values(by="importance", ascending=False))
     plt.title('LightGBM Features (avg over folds)')
     plt.tight_layout()
     plt.savefig('lgbm_importances01.png')
 
-def main(debug = False):
+def main(debug = True):
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
     with timer("Process bureau and bureau_balance"):
