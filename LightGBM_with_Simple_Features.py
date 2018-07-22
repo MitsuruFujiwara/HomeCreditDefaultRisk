@@ -185,8 +185,11 @@ def previous_applications(num_rows = None, nan_as_category = True):
         'RATE_DOWN_PAYMENT': [ 'max', 'mean'],
         'DAYS_DECISION': [ 'max', 'mean'],
         'CNT_PAYMENT': ['mean', 'sum'],
-        'NEW_PREV_CREDIT_TO_ANNUITY_RATIO':['mean','var','max','min'],
-        'NEW_PREV_CREDIT_TO_GOODS_RATIO':['mean','var','max','min']
+        'CREDIT_TO_ANNUITY_RATIO':['mean','var','max','min'],
+        'CREDIT_TO_GOODS_RATIO':['mean','var','max','min'],
+        'CREDIT_PERC_TO_ANNUITY_RATIO':['mean','var','max','min'],
+        'CREDIT_PERC_TO_GOODS_RATIO':['mean','var','max','min'],
+        'CNT_PAYMENT_TO_ANNUITY_RATIO':['mean','var','max','min']
     }
     # Previous applications categorical features
     cat_aggregations = {}
