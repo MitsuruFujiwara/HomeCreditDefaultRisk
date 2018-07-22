@@ -104,7 +104,7 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
 
     # Bureau and bureau_balance numeric features
     num_aggregations = {
-        'DAYS_CREDIT': [ 'mean', 'var'],
+        'DAYS_CREDIT': [ 'mean', 'var', 'max', 'min'],
         'DAYS_CREDIT_ENDDATE': [ 'mean'],
         'DAYS_CREDIT_UPDATE': ['mean'],
         'CREDIT_DAY_OVERDUE': ['mean'],
@@ -178,12 +178,19 @@ def previous_applications(num_rows = None, nan_as_category = True):
     approved = prev[prev['NAME_CONTRACT_STATUS_Approved'] == 1]
     approved_agg = approved.groupby('SK_ID_CURR').agg(num_aggregations)
     approved_agg.columns = pd.Index(['APPROVED_' + e[0] + "_" + e[1].upper() for e in approved_agg.columns.tolist()])
-    prev_agg = prev_agg.join(approved_agg, how='left', on='SK_ID_CURR') # 自分の環境でエラーが出るのでon='SK_ID_CURR'を消しました
+    prev_agg = prev_agg.join(approved_agg, how='left', on='SK_ID_CURR')
     # Previous Applications: Refused Applications - only numerical features
     refused = prev[prev['NAME_CONTRACT_STATUS_Refused'] == 1]
     refused_agg = refused.groupby('SK_ID_CURR').agg(num_aggregations)
     refused_agg.columns = pd.Index(['REFUSED_' + e[0] + "_" + e[1].upper() for e in refused_agg.columns.tolist()])
-    prev_agg = prev_agg.join(refused_agg, how='left', on='SK_ID_CURR') # 自分の環境でエラーが出るのでon='SK_ID_CURR'を消しました
+    prev_agg = prev_agg.join(refused_agg, how='left', on='SK_ID_CURR')
+
+    # ここから新規に追加した特徴量
+    prev_agg['NEW_PREV_CREDIT_TO_ANNUITY_RATIO_MEAN'] = prev_agg['PREV_AMT_CREDIT_MEAN'] / prev_agg['PREV_AMT_ANNUITY_MEAN']
+    prev_agg['NEW_PREV_CREDIT_TO_ANNUITY_RATIO_MAX'] = prev_agg['PREV_AMT_CREDIT_MAX'] / prev_agg['PREV_AMT_ANNUITY_MAX']
+    prev_agg['NEW_PREV_CREDIT_TO_GOODS_RATIO_MEAN'] = prev_agg['PREV_AMT_CREDIT_MEAN'] / prev_agg['PREV_AMT_GOODS_PRICE_MEAN']
+    prev_agg['NEW_PREV_CREDIT_TO_GOODS_RATIO_MAX'] = prev_agg['PREV_AMT_CREDIT_MAX'] / prev_agg['PREV_AMT_GOODS_PRICE_MAX']
+
     del refused, refused_agg, approved, approved_agg, prev
     gc.collect()
     return prev_agg
