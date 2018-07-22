@@ -161,6 +161,11 @@ def previous_applications(num_rows = None, nan_as_category = True):
     prev['DAYS_TERMINATION'].replace(365243, np.nan, inplace= True)
     # Add feature: value ask / value received percentage
     prev['APP_CREDIT_PERC'] = prev['AMT_APPLICATION'] / prev['AMT_CREDIT']
+
+    # ここから新規に追加した特徴量
+    prev['NEW_PREV_CREDIT_TO_ANNUITY_RATIO'] = prev['AMT_CREDIT'] / prev['AMT_ANNUITY']
+    prev['NEW_PREV_CREDIT_TO_GOODS_RATIO'] = prev['AMT_CREDIT'] / prev['AMT_GOODS_PRICE']
+
     # Previous applications numeric features
     num_aggregations = {
         'AMT_ANNUITY': [ 'max', 'mean'],
@@ -173,6 +178,8 @@ def previous_applications(num_rows = None, nan_as_category = True):
         'RATE_DOWN_PAYMENT': [ 'max', 'mean'],
         'DAYS_DECISION': [ 'max', 'mean'],
         'CNT_PAYMENT': ['mean', 'sum'],
+        'NEW_PREV_CREDIT_TO_ANNUITY_RATIO':['mean','var','max','min'],
+        'NEW_PREV_CREDIT_TO_GOODS_RATIO':['mean','var','max','min']
     }
     # Previous applications categorical features
     cat_aggregations = {}
@@ -191,12 +198,6 @@ def previous_applications(num_rows = None, nan_as_category = True):
     refused_agg = refused.groupby('SK_ID_CURR').agg(num_aggregations)
     refused_agg.columns = pd.Index(['REFUSED_' + e[0] + "_" + e[1].upper() for e in refused_agg.columns.tolist()])
     prev_agg = prev_agg.join(refused_agg, how='left', on='SK_ID_CURR')
-
-    # ここから新規に追加した特徴量
-    prev_agg['NEW_PREV_CREDIT_TO_ANNUITY_RATIO_MEAN'] = prev_agg['PREV_AMT_CREDIT_MEAN'] / prev_agg['PREV_AMT_ANNUITY_MEAN']
-    prev_agg['NEW_PREV_CREDIT_TO_ANNUITY_RATIO_MAX'] = prev_agg['PREV_AMT_CREDIT_MAX'] / prev_agg['PREV_AMT_ANNUITY_MAX']
-    prev_agg['NEW_PREV_CREDIT_TO_GOODS_RATIO_MEAN'] = prev_agg['PREV_AMT_CREDIT_MEAN'] / prev_agg['PREV_AMT_GOODS_PRICE_MEAN']
-    prev_agg['NEW_PREV_CREDIT_TO_GOODS_RATIO_MAX'] = prev_agg['PREV_AMT_CREDIT_MAX'] / prev_agg['PREV_AMT_GOODS_PRICE_MAX']
 
     del refused, refused_agg, approved, approved_agg, prev
     gc.collect()
