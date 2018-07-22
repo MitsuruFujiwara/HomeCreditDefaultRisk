@@ -103,10 +103,6 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
     gc.collect()
     # 追加します
     bureau['BB_RATIO_1'] = bureau['AMT_CREDIT_SUM']/bureau['AMT_CREDIT_SUM_DEBT']
-    bureau['BB_RATIO_2'] = bureau['AMT_ANNUITY']/bureau['AMT_CREDIT_SUM']
-    bureau['BB_RATIO_3'] = bureau['AMT_ANNUITY']/bureau['AMT_CREDIT_SUM_DEBT']
-    bureau['BB_RATIO_4'] = bureau['AMT_ANNUITY']/bureau['AMT_CREDIT_SUM_LIMIT']
-    bureau['BB_RATIO_5'] = bureau['AMT_ANNUITY']/bureau['AMT_CREDIT_SUM_OVERDUE']
 
     # Bureau and bureau_balance numeric features
     num_aggregations = {
@@ -124,11 +120,7 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
         'MONTHS_BALANCE_MIN': ['min'],
         'MONTHS_BALANCE_MAX': ['max'],
         'MONTHS_BALANCE_SIZE': ['mean', 'sum'],
-        'BB_RATIO_1':['mean','var','max','min'],
-        'BB_RATIO_2':['mean','var','max','min'],
-        'BB_RATIO_3':['mean','var','max','min'],
-        'BB_RATIO_4':['mean','var','max','min'],
-        'BB_RATIO_5':['mean','var','max','min']
+        'BB_RATIO_1':['mean','var','max','min']
     }
     # Bureau and bureau_balance categorical features
     cat_aggregations = {}
