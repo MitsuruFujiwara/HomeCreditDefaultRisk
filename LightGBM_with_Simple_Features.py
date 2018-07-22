@@ -102,7 +102,7 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
     del bb, bb_agg
     gc.collect()
     # 追加します
-    bureau['bb_ratio_1'] = bureau['AMT_CREDIT_SUM']/bureau['AMT_CREDIT_SUM_DEBT']
+    bureau['BB_RATIO_1'] = bureau['AMT_CREDIT_SUM']/bureau['AMT_CREDIT_SUM_DEBT']
 
     # Bureau and bureau_balance numeric features
     num_aggregations = {
@@ -159,8 +159,11 @@ def previous_applications(num_rows = None, nan_as_category = True):
     prev['APP_CREDIT_PERC'] = prev['AMT_APPLICATION'] / prev['AMT_CREDIT']
 
     # ここから新規に追加した特徴量
-    prev['NEW_PREV_CREDIT_TO_ANNUITY_RATIO'] = prev['AMT_CREDIT'] / prev['AMT_ANNUITY']
-    prev['NEW_PREV_CREDIT_TO_GOODS_RATIO'] = prev['AMT_CREDIT'] / prev['AMT_GOODS_PRICE']
+    prev['CREDIT_TO_ANNUITY_RATIO'] = prev['AMT_CREDIT'] / prev['AMT_ANNUITY']
+    prev['CREDIT_TO_GOODS_RATIO'] = prev['AMT_CREDIT'] / prev['AMT_GOODS_PRICE']
+    prev['CREDIT_PERC_TO_ANNUITY_RATIO'] = prev['APP_CREDIT_PERC'] / prev['AMT_ANNUITY']
+    prev['CREDIT_PERC_TO_GOODS_RATIO'] = prev['APP_CREDIT_PERC'] / prev['AMT_GOODS_PRICE']
+    prev['CNT_PAYMENT_TO_ANNUITY_RATIO'] = prev['CNT_PAYMENT'] / prev['AMT_ANNUITY']
 
     # Previous applications numeric features
     num_aggregations = {
