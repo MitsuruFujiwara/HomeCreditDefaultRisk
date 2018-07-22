@@ -159,8 +159,11 @@ def previous_applications(num_rows = None, nan_as_category = True):
     prev['APP_CREDIT_PERC'] = prev['AMT_APPLICATION'] / prev['AMT_CREDIT']
 
     # ここから新規に追加した特徴量
-    prev['NEW_PREV_CREDIT_TO_ANNUITY_RATIO'] = prev['AMT_CREDIT'] / prev['AMT_ANNUITY']
-    prev['NEW_PREV_CREDIT_TO_GOODS_RATIO'] = prev['AMT_CREDIT'] / prev['AMT_GOODS_PRICE']
+    prev['CREDIT_TO_ANNUITY_RATIO'] = prev['AMT_CREDIT'] / prev['AMT_ANNUITY']
+    prev['CREDIT_TO_GOODS_RATIO'] = prev['AMT_CREDIT'] / prev['AMT_GOODS_PRICE']
+    prev['CREDIT_PERC_TO_ANNUITY_RATIO'] = prev['APP_CREDIT_PERC'] / prev['AMT_ANNUITY']
+    prev['CREDIT_PERC_TO_GOODS_RATIO'] = prev['APP_CREDIT_PERC'] / prev['AMT_GOODS_PRICE']
+    prev['CNT_PAYMENT_TO_ANNUITY_RATIO'] = prev['CNT_PAYMENT'] / prev['AMT_ANNUITY']
 
     # Previous applications numeric features
     num_aggregations = {
@@ -174,8 +177,11 @@ def previous_applications(num_rows = None, nan_as_category = True):
         'RATE_DOWN_PAYMENT': [ 'max', 'mean'],
         'DAYS_DECISION': [ 'max', 'mean'],
         'CNT_PAYMENT': ['mean', 'sum'],
-        'NEW_PREV_CREDIT_TO_ANNUITY_RATIO':['mean','var','max','min'],
-        'NEW_PREV_CREDIT_TO_GOODS_RATIO':['mean','var','max','min']
+        'CREDIT_TO_ANNUITY_RATIO':['mean','var','max','min'],
+        'CREDIT_TO_GOODS_RATIO':['mean','var','max','min'],
+        'CREDIT_PERC_TO_ANNUITY_RATIO':['mean','var','max','min'],
+        'CREDIT_PERC_TO_GOODS_RATIO':['mean','var','max','min'],
+        'CNT_PAYMENT_TO_ANNUITY_RATIO':['mean','var','max','min']
     }
     # Previous applications categorical features
     cat_aggregations = {}
