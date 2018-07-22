@@ -2,10 +2,12 @@
 # From Kaggler : https://www.kaggle.com/jsaguiar
 # Just removed a few min, max features. U can see the CV is not good. Dont believe in LB.
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 import gc
 import time
+
 from contextlib import contextmanager
 from lightgbm import LGBMClassifier
 from sklearn.metrics import roc_auc_score, roc_curve
@@ -13,6 +15,7 @@ from sklearn.model_selection import KFold, StratifiedKFold
 import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 @contextmanager
@@ -313,35 +316,53 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
         train_x, train_y = train_df[feats].iloc[train_idx], train_df['TARGET'].iloc[train_idx]
         valid_x, valid_y = train_df[feats].iloc[valid_idx], train_df['TARGET'].iloc[valid_idx]
 
+        # set data structure
+        lgb_train = lgb.Dataset(train_x,
+                                label=train_y,
+                                free_raw_data=False)
+        lgb_test = lgb.Dataset(valid_x,
+                               label=valid_y,
+                               free_raw_data=False)
+
         # LightGBM parameters found by Bayesian optimization
-        clf = LGBMClassifier(
-            nthread=4,
-            n_estimators=10000,
-            learning_rate=0.02,
-            num_leaves=510,
-            colsample_bytree=0.1417420324,
-            subsample=0.9559916094,
-            max_depth=7,
-            reg_alpha=7.818042399,
-            reg_lambda=3.1091970455,
-            min_split_gain=0.498413589,
-            min_child_weight=43,
-            min_data_in_leaf=997,
-            silent=-1,
-            verbose=-1,
-            n_jobs=4,
-            random_state = 0 #たぶんここで乱数調整の余地あり
-            )
+        params = {
+                'task': 'train',
+                'boosting_type': 'dart',
+                'objective': 'binary',
+                'metric': {'auc'},
+                'num_threads': -1,
+                'learning_rate': 0.02,
+                'num_iteration': 10000,
+                'num_leaves': 510,
+                'colsample_bytree': 0.1417420324,
+                'subsample': 0.9559916094,
+                'max_depth': 7,
+                'reg_alpha': 7.818042399,
+                'reg_lambda': 3.1091970455,
+                'min_split_gain': 0.498413589,
+                'min_child_weight': 43,
+                'min_data_in_leaf': 997,
+                'verbose': -1,
+                'seed':326,
+                'bagging_seed':326,
+                'drop_seed':326
+                }
 
-        clf.fit(train_x, train_y, eval_set=[(train_x, train_y), (valid_x, valid_y)],
-            eval_metric= 'auc', verbose= 100, early_stopping_rounds= 200)
+        clf = lgb.train(
+                        params,
+                        lgb_train,
+                        valid_sets=[lgb_train, lgb_test],
+                        valid_names=['train', 'test'],
+                        early_stopping_rounds= 200,
+                        verbose_eval=100
+                        )
 
-        oof_preds[valid_idx] = clf.predict_proba(valid_x, num_iteration=clf.best_iteration_)[:, 1]
-        sub_preds += clf.predict_proba(test_df[feats], num_iteration=clf.best_iteration_)[:, 1] / folds.n_splits
+        oof_preds[valid_idx] = clf.predict(valid_x, num_iteration=clf.best_iteration)
+        sub_preds += clf.predict(test_df[feats], num_iteration=clf.best_iteration) / folds.n_splits
 
         fold_importance_df = pd.DataFrame()
         fold_importance_df["feature"] = feats
-        fold_importance_df["importance"] = clf.feature_importances_
+        fold_importance_df["importance"] = clf.feature_importance(importance_type='gain', iteration=clf.best_iteration)
         fold_importance_df["fold"] = n_fold + 1
         feature_importance_df = pd.concat([feature_importance_df, fold_importance_df], axis=0)
         print('Fold %2d AUC : %.6f' % (n_fold + 1, roc_auc_score(valid_y, oof_preds[valid_idx])))
