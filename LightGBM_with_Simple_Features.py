@@ -163,6 +163,10 @@ def previous_applications(num_rows = None, nan_as_category = True):
     prev['DAYS_LAST_DUE_1ST_VERSION'].replace(365243, np.nan, inplace= True)
     prev['DAYS_LAST_DUE'].replace(365243, np.nan, inplace= True)
     prev['DAYS_TERMINATION'].replace(365243, np.nan, inplace= True)
+
+    # fill nan as zero
+    prev['RATE_DOWN_PAYMENT']=prev['RATE_DOWN_PAYMENT'].fillna(0)
+
     # Add feature: value ask / value received percentage
     prev['APP_CREDIT_PERC'] = prev['AMT_APPLICATION'] / prev['AMT_CREDIT']
 
@@ -172,6 +176,10 @@ def previous_applications(num_rows = None, nan_as_category = True):
     prev['CREDIT_PERC_TO_ANNUITY_RATIO'] = prev['APP_CREDIT_PERC'] / prev['AMT_ANNUITY']
     prev['CREDIT_PERC_TO_GOODS_RATIO'] = prev['APP_CREDIT_PERC'] / prev['AMT_GOODS_PRICE']
     prev['CNT_PAYMENT_TO_ANNUITY_RATIO'] = prev['CNT_PAYMENT'] / prev['AMT_ANNUITY']
+    prev['ANNUITY_TO_DAYS_DECISION_RATIO'] = prev['AMT_ANNUITY'] / prev['DAYS_DECISION']
+    prev['CREDIT_TO_DAYS_DECISION_RATIO'] = prev['AMT_CREDIT'] / prev['DAYS_DECISION']
+    prev['CREDIT_PERC_TO_DAYS_DECISION_RATIO'] = prev['APP_CREDIT_PERC'] / prev['DAYS_DECISION']
+    prev['GOODS_TO_DAYS_DECISION_RATIO'] = prev['AMT_GOODS_PRICE'] / prev['DAYS_DECISION']
 
     # Previous applications numeric features
     num_aggregations = {
@@ -189,7 +197,11 @@ def previous_applications(num_rows = None, nan_as_category = True):
         'CREDIT_TO_GOODS_RATIO':['mean','var','max','min'],
         'CREDIT_PERC_TO_ANNUITY_RATIO':['mean','var','max','min'],
         'CREDIT_PERC_TO_GOODS_RATIO':['mean','var','max','min'],
-        'CNT_PAYMENT_TO_ANNUITY_RATIO':['mean','var','max','min']
+        'CNT_PAYMENT_TO_ANNUITY_RATIO':['mean','var','max','min'],
+        'ANNUITY_TO_DAYS_DECISION_RATIO':['mean','var','max','min'],
+        'CREDIT_TO_DAYS_DECISION_RATIO':['mean','var','max','min'],
+        'CREDIT_PERC_TO_DAYS_DECISION_RATIO':['mean','var','max','min'],
+        'GOODS_TO_DAYS_DECISION_RATIO':['mean','var','max','min']
     }
     # Previous applications categorical features
     cat_aggregations = {}
