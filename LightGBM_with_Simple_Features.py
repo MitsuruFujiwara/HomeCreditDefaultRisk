@@ -75,6 +75,12 @@ def application_train_test(num_rows = None, nan_as_category = False):
     df['NEW_INCOME_TO_BIRTH_RATIO'] = df['AMT_INCOME_TOTAL'] / df['DAYS_BIRTH']
     df['NEW_ANNUITY_TO_BIRTH_RATIO'] = df['AMT_ANNUITY'] / df['DAYS_BIRTH']
     df['NEW_CREDIT_TO_BIRTH_RATIO'] = df['AMT_CREDIT'] / df['DAYS_BIRTH']
+    df['NEW_EXT_SOURCES_MEAN12'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2']].mean(axis=1)
+    df['NEW_EXT_SOURCES_MEAN23'] = df[['EXT_SOURCE_2', 'EXT_SOURCE_3']].mean(axis=1)
+    df['NEW_EXT_SOURCES_MEAN31'] = df[['EXT_SOURCE_3', 'EXT_SOURCE_1']].mean(axis=1)
+    df['NEW_SOURCES_PROD12'] = df['EXT_SOURCE_1'] * df['EXT_SOURCE_2']
+    df['NEW_SOURCES_PROD23'] = df['EXT_SOURCE_2'] * df['EXT_SOURCE_3']
+    df['NEW_SOURCES_PROD31'] = df['EXT_SOURCE_3'] * df['EXT_SOURCE_1']
 
     # Categorical features with Binary encode (0 or 1; two categories)
     for bin_feature in ['CODE_GENDER', 'FLAG_OWN_CAR', 'FLAG_OWN_REALTY']:
@@ -431,14 +437,16 @@ def main(debug = False):
         del cc
         gc.collect()
     with timer("Run LightGBM with kfold"):
+        # 不要なカラムを落とさない方がスコア高かったのでとりあえずここはコメントアウトしてます
+        """
         # 不要なカラムを落とす処理を追加
         dropcolumns=pd.read_csv('feature_importance_not_to_use.csv')
         dropcolumns = dropcolumns['feature'].tolist()
         dropcolumns = [d for d in dropcolumns if d in df.columns.tolist()]
 
         df = df.drop(dropcolumns, axis=1)
+        """
         feat_importance = kfold_lightgbm(df, num_folds= 5, stratified= False, debug= debug)
-
 if __name__ == "__main__":
     submission_file_name = "submission_add_feature_v2.csv"
     with timer("Full model run"):
