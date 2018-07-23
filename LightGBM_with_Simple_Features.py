@@ -110,16 +110,28 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
     bureau.drop(['SK_ID_BUREAU'], axis=1, inplace= True)
     del bb, bb_agg
     gc.collect()
-    # 追加します
-    bureau['BB_RATIO_1'] = bureau['AMT_CREDIT_SUM']/bureau['AMT_CREDIT_SUM_DEBT']
+
+    # 追加します　→表記分かりやすいように変更しましたby藤原
+    bureau['CREDIT_SUM_TO_DEBT_RATIO'] = bureau['AMT_CREDIT_SUM']/bureau['AMT_CREDIT_SUM_DEBT']
+    bureau['CREDIT_SUM_TO_LIMIT_RATIO'] = bureau['AMT_CREDIT_SUM']/bureau['AMT_CREDIT_SUM_LIMIT']
+    bureau['CREDIT_SUM_TO_OVERDUE_RATIO'] = bureau['AMT_CREDIT_SUM']/bureau['AMT_CREDIT_SUM_OVERDUE']
+    bureau['CREDIT_SUM_TO_MAX_OVERDUE_RATIO'] = bureau['AMT_CREDIT_SUM']/bureau['AMT_CREDIT_MAX_OVERDUE']
+    bureau['CREDIT_SUM_TO_ANNUITY_RATIO'] = bureau['AMT_CREDIT_SUM']/bureau['AMT_ANNUITY']
+
+    # DAYS_CREDITを起点にした特徴量
+    bureau['MAX_OVERDUE_TO_DAYS_CREDIT_RATIO'] = bureau['AMT_CREDIT_MAX_OVERDUE']/bureau['DAYS_CREDIT']
+    bureau['DAY_OVERDUE_TO_DAYS_CREDIT_RATIO'] = bureau['CREDIT_DAY_OVERDUE']/bureau['DAYS_CREDIT']
+    bureau['ENDDATE_TO_DAYS_CREDIT_RATIO'] = bureau['DAYS_CREDIT_ENDDATE']/bureau['DAYS_CREDIT']
+    bureau['ENDDATE_FACT_TO_DAYS_CREDIT_RATIO'] = bureau['DAYS_ENDDATE_FACT']/bureau['DAYS_CREDIT']
+    bureau['UPDATE_TO_DAYS_CREDIT_RATIO'] = bureau['DAYS_CREDIT_UPDATE']/bureau['DAYS_CREDIT']
 
     # Bureau and bureau_balance numeric features
     num_aggregations = {
-        'DAYS_CREDIT': [ 'mean', 'var', 'max', 'min'],
+        'DAYS_CREDIT': [ 'mean', 'var', 'max', 'min', 'skew'], # 強そうな特徴量にはskewも追加する方針です。
         'DAYS_CREDIT_ENDDATE': [ 'mean'],
         'DAYS_CREDIT_UPDATE': ['mean'],
         'CREDIT_DAY_OVERDUE': ['mean'],
-        'AMT_CREDIT_MAX_OVERDUE': ['mean'],
+        'AMT_CREDIT_MAX_OVERDUE': ['mean', 'var', 'max', 'min', 'skew'], # 強そうな特徴量にはskewも追加する方針です。
         'AMT_CREDIT_SUM': [ 'mean', 'sum'],
         'AMT_CREDIT_SUM_DEBT': [ 'mean', 'sum'],
         'AMT_CREDIT_SUM_OVERDUE': ['mean'],
@@ -129,7 +141,16 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
         'MONTHS_BALANCE_MIN': ['min'],
         'MONTHS_BALANCE_MAX': ['max'],
         'MONTHS_BALANCE_SIZE': ['mean', 'sum'],
-        'BB_RATIO_1':['mean','var','max','min']
+        'CREDIT_SUM_TO_DEBT_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_SUM_TO_LIMIT_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_SUM_TO_OVERDUE_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_SUM_TO_MAX_OVERDUE_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_SUM_TO_ANNUITY_RATIO':['mean','var','max','min','skew'],
+        'MAX_OVERDUE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
+        'DAY_OVERDUE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
+        'ENDDATE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
+        'ENDDATE_FACT_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
+        'UPDATE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew']
     }
     # Bureau and bureau_balance categorical features
     cat_aggregations = {}
@@ -150,6 +171,10 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
     closed_agg = closed.groupby('SK_ID_CURR').agg(num_aggregations)
     closed_agg.columns = pd.Index(['CLOSED_' + e[0] + "_" + e[1].upper() for e in closed_agg.columns.tolist()])
     bureau_agg = bureau_agg.join(closed_agg, how='left', on='SK_ID_CURR')
+
+    # 新たに追加した変数です
+    bureau_agg['BURO_CREDIT_ACTIVE_CLOSED_RATIO']=bureau_agg['BURO_CREDIT_ACTIVE_Active_MEAN']/bureau_agg['BURO_CREDIT_ACTIVE_Closed_MEAN']
+
     del closed, closed_agg, bureau
     gc.collect()
     return bureau_agg
@@ -176,7 +201,11 @@ def previous_applications(num_rows = None, nan_as_category = True):
     prev['CREDIT_TO_GOODS_RATIO'] = prev['AMT_CREDIT'] / prev['AMT_GOODS_PRICE']
     prev['CREDIT_PERC_TO_ANNUITY_RATIO'] = prev['APP_CREDIT_PERC'] / prev['AMT_ANNUITY']
     prev['CREDIT_PERC_TO_GOODS_RATIO'] = prev['APP_CREDIT_PERC'] / prev['AMT_GOODS_PRICE']
-    prev['CNT_PAYMENT_TO_ANNUITY_RATIO'] = prev['CNT_PAYMENT'] / prev['AMT_ANNUITY']
+    prev['ANNUITY_TO_CNT_PAYMENT_RATIO'] = prev['AMT_ANNUITY'] / prev['CNT_PAYMENT']
+    prev['APPLICATION_TO_CNT_PAYMENT_RATIO'] = prev['AMT_APPLICATION'] / prev['CNT_PAYMENT']
+    prev['CREDIT_TO_CNT_PAYMENT_RATIO'] = prev['AMT_CREDIT'] / prev['CNT_PAYMENT']
+    prev['DOWN_PAYMENT_TO_CNT_PAYMENT_RATIO'] = prev['AMT_DOWN_PAYMENT'] / prev['CNT_PAYMENT']
+    prev['GOODS_PRICE_TO_CNT_PAYMENT_RATIO'] = prev['AMT_GOODS_PRICE'] / prev['CNT_PAYMENT']
     prev['ANNUITY_TO_DAYS_DECISION_RATIO'] = prev['AMT_ANNUITY'] / prev['DAYS_DECISION']
     prev['CREDIT_TO_DAYS_DECISION_RATIO'] = prev['AMT_CREDIT'] / prev['DAYS_DECISION']
     prev['CREDIT_PERC_TO_DAYS_DECISION_RATIO'] = prev['APP_CREDIT_PERC'] / prev['DAYS_DECISION']
@@ -193,16 +222,20 @@ def previous_applications(num_rows = None, nan_as_category = True):
         'HOUR_APPR_PROCESS_START': [ 'max', 'mean'],
         'RATE_DOWN_PAYMENT': [ 'max', 'mean'],
         'DAYS_DECISION': [ 'max', 'mean'],
-        'CNT_PAYMENT': ['mean', 'sum'],
-        'CREDIT_TO_ANNUITY_RATIO':['mean','var','max','min'],
-        'CREDIT_TO_GOODS_RATIO':['mean','var','max','min'],
-        'CREDIT_PERC_TO_ANNUITY_RATIO':['mean','var','max','min'],
-        'CREDIT_PERC_TO_GOODS_RATIO':['mean','var','max','min'],
-        'CNT_PAYMENT_TO_ANNUITY_RATIO':['mean','var','max','min'],
-        'ANNUITY_TO_DAYS_DECISION_RATIO':['mean','var','max','min'],
-        'CREDIT_TO_DAYS_DECISION_RATIO':['mean','var','max','min'],
-        'CREDIT_PERC_TO_DAYS_DECISION_RATIO':['mean','var','max','min'],
-        'GOODS_TO_DAYS_DECISION_RATIO':['mean','var','max','min']
+        'CNT_PAYMENT': ['mean','sum','var','max','min','skew'],
+        'CREDIT_TO_ANNUITY_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_TO_GOODS_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_PERC_TO_ANNUITY_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_PERC_TO_GOODS_RATIO':['mean','var','max','min','skew'],
+        'ANNUITY_TO_CNT_PAYMENT_RATIO':['mean','var','max','min','skew'],
+        'APPLICATION_TO_CNT_PAYMENT_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_TO_CNT_PAYMENT_RATIO':['mean','var','max','min','skew'],
+        'DOWN_PAYMENT_TO_CNT_PAYMENT_RATIO':['mean','var','max','min','skew'],
+        'GOODS_PRICE_TO_CNT_PAYMENT_RATIO':['mean','var','max','min','skew'],
+        'ANNUITY_TO_DAYS_DECISION_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_TO_DAYS_DECISION_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_PERC_TO_DAYS_DECISION_RATIO':['mean','var','max','min','skew'],
+        'GOODS_TO_DAYS_DECISION_RATIO':['mean','var','max','min','skew']
     }
     # Previous applications categorical features
     cat_aggregations = {}
@@ -333,7 +366,7 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
         # LightGBM parameters found by Bayesian optimization
         params = {
                 'task': 'train',
-                'boosting_type': 'dart',
+#                'boosting_type': 'dart',
                 'objective': 'binary',
                 'metric': {'auc'},
                 'num_threads': -1,
@@ -381,10 +414,11 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
         test_df['TARGET'] = sub_preds
 
         # AUDスコアを上げるため提出ファイルの調整を追加
-        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > 0.700 else x)
-        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x < 0.002 else x)
+#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > 0.700 else x)
+#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x < 0.002 else x)
 
         test_df[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name, index= False)
+
     display_importances(feature_importance_df)
     return feature_importance_df
 
