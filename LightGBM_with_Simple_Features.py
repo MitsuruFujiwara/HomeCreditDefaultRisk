@@ -87,7 +87,14 @@ def application_train_test(num_rows = None, nan_as_category = False):
         df[bin_feature], uniques = pd.factorize(df[bin_feature])
     # Categorical features with One-Hot encode
     df, cat_cols = one_hot_encoder(df, nan_as_category)
-
+    dropcolum=['FLAG_DOCUMENT_2','FLAG_DOCUMENT_4',
+    'FLAG_DOCUMENT_5','FLAG_DOCUMENT_6','FLAG_DOCUMENT_7',
+    'FLAG_DOCUMENT_8','FLAG_DOCUMENT_9','FLAG_DOCUMENT_10',
+    'FLAG_DOCUMENT_11','FLAG_DOCUMENT_12','FLAG_DOCUMENT_13',
+    'FLAG_DOCUMENT_14','FLAG_DOCUMENT_15','FLAG_DOCUMENT_16',
+    'FLAG_DOCUMENT_17','FLAG_DOCUMENT_18','FLAG_DOCUMENT_19',
+    'FLAG_DOCUMENT_20','FLAG_DOCUMENT_21']
+    df= df.drop(dropcolum,axis=1)
 
     del test_df
     gc.collect()
@@ -137,17 +144,17 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
         'AMT_CREDIT_SUM_OVERDUE': ['mean'],
         'AMT_CREDIT_SUM_LIMIT': ['mean', 'sum'],
         'AMT_ANNUITY': ['max', 'mean'],
-        'CNT_CREDIT_PROLONG': ['sum'],
+#        'CNT_CREDIT_PROLONG': ['sum'],
         'MONTHS_BALANCE_MIN': ['min'],
         'MONTHS_BALANCE_MAX': ['max'],
         'MONTHS_BALANCE_SIZE': ['mean', 'sum'],
-        'CREDIT_SUM_TO_DEBT_RATIO':['mean','var','max','min','skew'],
-        'CREDIT_SUM_TO_LIMIT_RATIO':['mean','var','max','min','skew'],
-        'CREDIT_SUM_TO_OVERDUE_RATIO':['mean','var','max','min','skew'],
-        'CREDIT_SUM_TO_MAX_OVERDUE_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_SUM_TO_DEBT_RATIO':['mean','max','min'],
+        'CREDIT_SUM_TO_LIMIT_RATIO':['mean','max','min'],
+        'CREDIT_SUM_TO_OVERDUE_RATIO':['mean','max','min'],
+        'CREDIT_SUM_TO_MAX_OVERDUE_RATIO':['min'],
         'CREDIT_SUM_TO_ANNUITY_RATIO':['mean','var','max','min','skew'],
         'MAX_OVERDUE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
-        'DAY_OVERDUE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
+        'DAY_OVERDUE_TO_DAYS_CREDIT_RATIO':['var','skew'],
         'ENDDATE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
         'ENDDATE_FACT_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
         'UPDATE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew']
@@ -409,21 +416,13 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
         gc.collect()
 
     print('Full AUC score %.6f' % roc_auc_score(train_df['TARGET'], oof_preds))
-    # Write submission file and plot feature importance
-    if not debug:
-        test_df['TARGET'] = sub_preds
 
-        # AUDスコアを上げるため提出ファイルの調整を追加
-#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > 0.700 else x)
-#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x < 0.002 else x)
+    test_df['TARGET'] = sub_preds
 
-        test_df[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name, index= False)
-
-    display_importances(feature_importance_df)
-    return feature_importance_df
+    return feature_importance_df, test_df[['SK_ID_CURR', 'TARGET']]
 
 # Display/plot feature importance
-def display_importances(feature_importance_df_):
+def display_importances(feature_importance_df_, outputpath):
     cols = feature_importance_df_[["feature", "importance"]].groupby("feature").mean().sort_values(by="importance", ascending=False)[:40].index
     best_features = feature_importance_df_.loc[feature_importance_df_.feature.isin(cols)]
 
@@ -435,7 +434,7 @@ def display_importances(feature_importance_df_):
     sns.barplot(x="importance", y="feature", data=best_features.sort_values(by="importance", ascending=False))
     plt.title('LightGBM Features (avg over folds)')
     plt.tight_layout()
-    plt.savefig('lgbm_importances01.png')
+    plt.savefig(outputpath)
 
 def main(debug = False):
     num_rows = 10000 if debug else None
@@ -480,7 +479,29 @@ def main(debug = False):
 
         df = df.drop(dropcolumns, axis=1)
         """
-        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified= False, debug= debug)
+
+        # split data by CODE_GENDER
+        df_M = df[df['CODE_GENDER']==0]
+        df_F = df[df['CODE_GENDER']==1]
+
+        # 性別毎にモデルを推定
+        feat_importance_M, test_df_M = kfold_lightgbm(df_M, num_folds= 5, stratified= True, debug= debug)
+        feat_importance_F, test_df_F = kfold_lightgbm(df_F, num_folds= 5, stratified= True, debug= debug)
+
+        # 性別ごとのデータを結合
+        test_df = pd.concat([test_df_M, test_df_F])
+        test_df = test_df.sort_values(by='SK_ID_CURR')
+
+        # AUDスコアを上げるため提出ファイルの調整を追加
+#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > 0.700 else x)
+#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x < 0.002 else x)
+
+        if not debug:
+            test_df.to_csv(submission_file_name, index= False)
+
+        display_importances(feat_importance_M ,'lgbm_importances_M.png')
+        display_importances(feat_importance_F ,'lgbm_importances_F.png')
+
 if __name__ == "__main__":
     submission_file_name = "submission_add_feature_v2.csv"
     with timer("Full model run"):
