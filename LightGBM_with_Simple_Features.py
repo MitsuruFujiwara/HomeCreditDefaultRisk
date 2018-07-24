@@ -152,7 +152,7 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
         'CREDIT_SUM_TO_LIMIT_RATIO':['mean','max','min'],
         'CREDIT_SUM_TO_OVERDUE_RATIO':['mean','max','min'],
         'CREDIT_SUM_TO_MAX_OVERDUE_RATIO':['min'],
-        'CREDIT_SUM_TO_ANNUITY_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_SUM_TO_ANNUITY_RATIO':['mean','var','max','min'],
         'MAX_OVERDUE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
         'DAY_OVERDUE_TO_DAYS_CREDIT_RATIO':['var','skew'],
         'ENDDATE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
@@ -422,13 +422,13 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
     return feature_importance_df, test_df[['SK_ID_CURR', 'TARGET']]
 
 # Display/plot feature importance
-def display_importances(feature_importance_df_, outputpath):
+def display_importances(feature_importance_df_, outputpath, csv_outputpath):
     cols = feature_importance_df_[["feature", "importance"]].groupby("feature").mean().sort_values(by="importance", ascending=False)[:40].index
     best_features = feature_importance_df_.loc[feature_importance_df_.feature.isin(cols)]
 
     # importance下位の確認用に追加しました
     _feature_importance_df_=feature_importance_df_.groupby('feature').sum()
-    _feature_importance_df_.to_csv("feature_importance.csv")
+    _feature_importance_df_.to_csv(csv_outputpath)
 
     plt.figure(figsize=(8, 10))
     sns.barplot(x="importance", y="feature", data=best_features.sort_values(by="importance", ascending=False))
@@ -436,35 +436,53 @@ def display_importances(feature_importance_df_, outputpath):
     plt.tight_layout()
     plt.savefig(outputpath)
 
-def main(debug = False):
+def main(debug = False, use_csv=False):
     num_rows = 10000 if debug else None
-    df = application_train_test(num_rows)
+    if use_csv:
+        df = pd.read_csv('APP.csv', index_col=0)
+    else:
+        df = application_train_test(num_rows)
     with timer("Process bureau and bureau_balance"):
-        bureau = bureau_and_balance(num_rows)
+        if use_csv:
+            bureau = pd.read_csv('BUREAU.csv', index_col=0)
+        else:
+            bureau = bureau_and_balance(num_rows)
         print("Bureau df shape:", bureau.shape)
         df = df.join(bureau, how='left', on='SK_ID_CURR')
         del bureau
         gc.collect()
     with timer("Process previous_applications"):
-        prev = previous_applications(num_rows)
+        if use_csv:
+            prev = pd.read_csv('PREV.csv', index_col=0)
+        else:
+            prev = previous_applications(num_rows)
         print("Previous applications df shape:", prev.shape)
         df = df.join(prev, how='left', on='SK_ID_CURR')
         del prev
         gc.collect()
     with timer("Process POS-CASH balance"):
-        pos = pos_cash(num_rows)
+        if use_csv:
+            pos = pd.read_csv('POS.csv', index_col=0)
+        else:
+            pos = pos_cash(num_rows)
         print("Pos-cash balance df shape:", pos.shape)
         df = df.join(pos, how='left', on='SK_ID_CURR')
         del pos
         gc.collect()
     with timer("Process installments payments"):
-        ins = installments_payments(num_rows)
+        if use_csv:
+            ins = pd.read_csv('INS.csv', index_col=0)
+        else:
+            ins = installments_payments(num_rows)
         print("Installments payments df shape:", ins.shape)
         df = df.join(ins, how='left', on='SK_ID_CURR')
         del ins
         gc.collect()
     with timer("Process credit card balance"):
-        cc = credit_card_balance(num_rows)
+        if use_csv:
+            cc = pd.read_csv('CC.csv', index_col=0)
+        else:
+            cc = credit_card_balance(num_rows)
         print("Credit card balance df shape:", cc.shape)
         df = df.join(cc, how='left', on='SK_ID_CURR')
         del cc
@@ -484,9 +502,15 @@ def main(debug = False):
         df_M = df[df['CODE_GENDER']==0]
         df_F = df[df['CODE_GENDER']==1]
 
+        df_M.to_csv('data_m.csv')
+        df_F.to_csv('data_f.csv')
+
+        df_M.drop('CODE_GENDER',axis=1)
+        df_F.drop('CODE_GENDER',axis=1)
+
         # 性別毎にモデルを推定
-        feat_importance_M, test_df_M = kfold_lightgbm(df_M, num_folds= 5, stratified= True, debug= debug)
-        feat_importance_F, test_df_F = kfold_lightgbm(df_F, num_folds= 5, stratified= True, debug= debug)
+        feat_importance_M, test_df_M = kfold_lightgbm(df_M, num_folds= 5, stratified= False, debug= debug)
+        feat_importance_F, test_df_F = kfold_lightgbm(df_F, num_folds= 5, stratified= False, debug= debug)
 
         # 性別ごとのデータを結合
         test_df = pd.concat([test_df_M, test_df_F])
@@ -499,10 +523,10 @@ def main(debug = False):
         if not debug:
             test_df.to_csv(submission_file_name, index= False)
 
-        display_importances(feat_importance_M ,'lgbm_importances_M.png')
-        display_importances(feat_importance_F ,'lgbm_importances_F.png')
+        display_importances(feat_importance_M ,'lgbm_importances_M.png', 'feature_importance_M.csv')
+        display_importances(feat_importance_F ,'lgbm_importances_F.png', 'feature_importance_F.csv')
 
 if __name__ == "__main__":
-    submission_file_name = "submission_add_feature_v2.csv"
+    submission_file_name = "submission_add_feature_split.csv"
     with timer("Full model run"):
         main()
