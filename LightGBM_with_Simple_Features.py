@@ -340,7 +340,7 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
 
 # LightGBM GBDT with KFold or Stratified KFold
 # Parameters from Tilii kernel: https://www.kaggle.com/tilii7/olivier-lightgbm-parameters-by-bayesian-opt/code
-def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
+def kfold_lightgbm(df, num_folds, gender, stratified = False, debug= False):
     # Divide in training/validation and test data
     train_df = df[df['TARGET'].notnull()]
     test_df = df[df['TARGET'].isnull()]
@@ -370,29 +370,51 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
                                label=valid_y,
                                free_raw_data=False)
 
-        # LightGBM parameters found by Bayesian optimization
-        params = {
-                'task': 'train',
-#                'boosting_type': 'dart',
-                'objective': 'binary',
-                'metric': {'auc'},
-                'num_threads': -1,
-                'learning_rate': 0.02,
-                'num_iteration': 10000,
-                'num_leaves': 510,
-                'colsample_bytree': 0.1417420324,
-                'subsample': 0.9559916094,
-                'max_depth': 7,
-                'reg_alpha': 7.818042399,
-                'reg_lambda': 3.1091970455,
-                'min_split_gain': 0.498413589,
-                'min_child_weight': 43,
-                'min_data_in_leaf': 997,
-                'verbose': -1,
-                'seed':326,
-                'bagging_seed':326,
-                'drop_seed':326
-                }
+        # モデルごとのパラメータをupdateしました
+        if gender == 'M':
+            params = {
+                    'task': 'train',
+                    'objective': 'binary',
+                    'metric': {'auc'},
+                    'num_threads': -1,
+                    'learning_rate': 0.02,
+                    'num_iteration': 10000,
+                    'num_leaves': 511,
+                    'colsample_bytree': 0.1002441743,
+                    'subsample': 0.8066173666,
+                    'max_depth': 7,
+                    'reg_alpha': 9.4011987901,
+                    'reg_lambda': 7.3179530787,
+                    'min_split_gain': 0.8694604688,
+                    'min_child_weight': 45,
+                    'min_data_in_leaf': 322,
+                    'verbose': -1,
+                    'seed':326,
+                    'bagging_seed':326,
+                    'drop_seed':326
+                    }
+        elif gender == 'F':
+            params = {
+                    'task': 'train',
+                    'objective': 'binary',
+                    'metric': {'auc'},
+                    'num_threads': -1,
+                    'learning_rate': 0.02,
+                    'num_iteration': 10000,
+                    'num_leaves': 273,
+                    'colsample_bytree': 0.1463185817,
+                    'subsample': 0.0093464293,
+                    'max_depth': 5,
+                    'reg_alpha': 8.4393120346,
+                    'reg_lambda': 9.2681783744,
+                    'min_split_gain': 0.1439947237,
+                    'min_child_weight': 30,
+                    'min_data_in_leaf': 442,
+                    'verbose': -1,
+                    'seed':326,
+                    'bagging_seed':326,
+                    'drop_seed':326
+                    }
 
         clf = lgb.train(
                         params,
@@ -438,51 +460,57 @@ def display_importances(feature_importance_df_, outputpath, csv_outputpath):
 
 def main(debug = False, use_csv=False):
     num_rows = 10000 if debug else None
-    if use_csv:
+    if False:
         df = pd.read_csv('APP.csv', index_col=0)
     else:
         df = application_train_test(num_rows)
+        df.to_csv('APP.csv', index=False)
     with timer("Process bureau and bureau_balance"):
         if use_csv:
-            bureau = pd.read_csv('BUREAU.csv', index_col=0)
+            bureau = pd.read_csv('BUREAU.csv', index_col='SK_ID_CURR')
         else:
             bureau = bureau_and_balance(num_rows)
+            bureau.to_csv('BUREAU.csv')
         print("Bureau df shape:", bureau.shape)
         df = df.join(bureau, how='left', on='SK_ID_CURR')
         del bureau
         gc.collect()
     with timer("Process previous_applications"):
         if use_csv:
-            prev = pd.read_csv('PREV.csv', index_col=0)
+            prev = pd.read_csv('PREV.csv', index_col='SK_ID_CURR')
         else:
             prev = previous_applications(num_rows)
+            prev.to_csv('PREV.csv')
         print("Previous applications df shape:", prev.shape)
         df = df.join(prev, how='left', on='SK_ID_CURR')
         del prev
         gc.collect()
     with timer("Process POS-CASH balance"):
         if use_csv:
-            pos = pd.read_csv('POS.csv', index_col=0)
+            pos = pd.read_csv('POS.csv', index_col='SK_ID_CURR')
         else:
             pos = pos_cash(num_rows)
+            pos.to_csv('POS.csv')
         print("Pos-cash balance df shape:", pos.shape)
         df = df.join(pos, how='left', on='SK_ID_CURR')
         del pos
         gc.collect()
     with timer("Process installments payments"):
         if use_csv:
-            ins = pd.read_csv('INS.csv', index_col=0)
+            ins = pd.read_csv('INS.csv', index_col='SK_ID_CURR')
         else:
             ins = installments_payments(num_rows)
+            ins.to_csv('INS.csv')
         print("Installments payments df shape:", ins.shape)
         df = df.join(ins, how='left', on='SK_ID_CURR')
         del ins
         gc.collect()
     with timer("Process credit card balance"):
         if use_csv:
-            cc = pd.read_csv('CC.csv', index_col=0)
+            cc = pd.read_csv('CC.csv', index_col='SK_ID_CURR')
         else:
             cc = credit_card_balance(num_rows)
+            cc.to_csv('CC.csv')
         print("Credit card balance df shape:", cc.shape)
         df = df.join(cc, how='left', on='SK_ID_CURR')
         del cc
@@ -502,15 +530,15 @@ def main(debug = False, use_csv=False):
         df_M = df[df['CODE_GENDER']==0]
         df_F = df[df['CODE_GENDER']==1]
 
-        df_M.to_csv('data_m.csv')
-        df_F.to_csv('data_f.csv')
+#        df_M.to_csv('data_m.csv')
+#        df_F.to_csv('data_f.csv')
 
         df_M.drop('CODE_GENDER',axis=1)
         df_F.drop('CODE_GENDER',axis=1)
 
         # 性別毎にモデルを推定
-        feat_importance_M, test_df_M = kfold_lightgbm(df_M, num_folds= 5, stratified= False, debug= debug)
-        feat_importance_F, test_df_F = kfold_lightgbm(df_F, num_folds= 5, stratified= False, debug= debug)
+        feat_importance_M, test_df_M = kfold_lightgbm(df_M, num_folds= 5, gender='M', stratified= False, debug= debug)
+        feat_importance_F, test_df_F = kfold_lightgbm(df_F, num_folds= 5, gender='F', stratified= False, debug= debug)
 
         # 性別ごとのデータを結合
         test_df = pd.concat([test_df_M, test_df_F])
@@ -529,4 +557,4 @@ def main(debug = False, use_csv=False):
 if __name__ == "__main__":
     submission_file_name = "submission_add_feature_split.csv"
     with timer("Full model run"):
-        main()
+        main(use_csv=True)
