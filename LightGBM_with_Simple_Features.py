@@ -340,24 +340,29 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
 
 # LightGBM GBDT with KFold or Stratified KFold
 # Parameters from Tilii kernel: https://www.kaggle.com/tilii7/olivier-lightgbm-parameters-by-bayesian-opt/code
-def kfold_lightgbm(df, num_folds, gender, stratified = False, debug= False):
+def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
+
     # Divide in training/validation and test data
     train_df = df[df['TARGET'].notnull()]
     test_df = df[df['TARGET'].isnull()]
+
     print("Starting LightGBM. Train shape: {}, test shape: {}".format(train_df.shape, test_df.shape))
     del df
     gc.collect()
+
     # Cross validation model
     if stratified:
         folds = StratifiedKFold(n_splits= num_folds, shuffle=True, random_state=47)
     else:
         folds = KFold(n_splits= num_folds, shuffle=True, random_state=47)
+
     # Create arrays and dataframes to store results
     oof_preds = np.zeros(train_df.shape[0])
     sub_preds = np.zeros(test_df.shape[0])
     feature_importance_df = pd.DataFrame()
     feats = [f for f in train_df.columns if f not in ['TARGET','SK_ID_CURR','SK_ID_BUREAU','SK_ID_PREV','index']]
 
+    # 最初にsplitしないバージョンでモデルを推定します
     for n_fold, (train_idx, valid_idx) in enumerate(folds.split(train_df[feats], train_df['TARGET'])):
         train_x, train_y = train_df[feats].iloc[train_idx], train_df['TARGET'].iloc[train_idx]
         valid_x, valid_y = train_df[feats].iloc[valid_idx], train_df['TARGET'].iloc[valid_idx]
@@ -370,51 +375,30 @@ def kfold_lightgbm(df, num_folds, gender, stratified = False, debug= False):
                                label=valid_y,
                                free_raw_data=False)
 
-        # モデルごとのパラメータをupdateしました
-        if gender == 'M':
-            params = {
-                    'task': 'train',
-                    'objective': 'binary',
-                    'metric': {'auc'},
-                    'num_threads': -1,
-                    'learning_rate': 0.02,
-                    'num_iteration': 10000,
-                    'num_leaves': 511,
-                    'colsample_bytree': 0.1002441743,
-                    'subsample': 0.8066173666,
-                    'max_depth': 7,
-                    'reg_alpha': 9.4011987901,
-                    'reg_lambda': 7.3179530787,
-                    'min_split_gain': 0.8694604688,
-                    'min_child_weight': 45,
-                    'min_data_in_leaf': 322,
-                    'verbose': -1,
-                    'seed':326,
-                    'bagging_seed':326,
-                    'drop_seed':326
-                    }
-        elif gender == 'F':
-            params = {
-                    'task': 'train',
-                    'objective': 'binary',
-                    'metric': {'auc'},
-                    'num_threads': -1,
-                    'learning_rate': 0.02,
-                    'num_iteration': 10000,
-                    'num_leaves': 273,
-                    'colsample_bytree': 0.1463185817,
-                    'subsample': 0.0093464293,
-                    'max_depth': 5,
-                    'reg_alpha': 8.4393120346,
-                    'reg_lambda': 9.2681783744,
-                    'min_split_gain': 0.1439947237,
-                    'min_child_weight': 30,
-                    'min_data_in_leaf': 442,
-                    'verbose': -1,
-                    'seed':326,
-                    'bagging_seed':326,
-                    'drop_seed':326
-                    }
+        # LightGBM parameters found by Bayesian optimization
+        params = {
+                'device' : 'gpu',
+                'task': 'train',
+#                'boosting_type': 'dart',
+                'objective': 'binary',
+                'metric': {'auc'},
+                'num_threads': -1,
+                'learning_rate': 0.02,
+                'num_iteration': 10000,
+                'num_leaves': 510,
+                'colsample_bytree': 0.1417420324,
+                'subsample': 0.9559916094,
+                'max_depth': 7,
+                'reg_alpha': 7.818042399,
+                'reg_lambda': 3.1091970455,
+                'min_split_gain': 0.498413589,
+                'min_child_weight': 43,
+                'min_data_in_leaf': 997,
+                'verbose': -1,
+                'seed':326,
+                'bagging_seed':326,
+                'drop_seed':326
+                }
 
         clf = lgb.train(
                         params,
@@ -439,9 +423,183 @@ def kfold_lightgbm(df, num_folds, gender, stratified = False, debug= False):
 
     print('Full AUC score %.6f' % roc_auc_score(train_df['TARGET'], oof_preds))
 
-    test_df['TARGET'] = sub_preds
+    """
+    ここから追加の処理
+    CODE_GENDERでデータを分割し、全体モデルによる推定値（oof_preds）を変数として追加、性別毎に2回目の推定を行う
+    """
 
-    return feature_importance_df, test_df[['SK_ID_CURR', 'TARGET']]
+    # 全体モデルの推定値を変数に追加
+    train_df['oof_preds']=oof_preds
+    test_df['oof_preds']=sub_preds
+
+    # split data by CODE_GENDER
+    train_M = train_df[train_df['CODE_GENDER']==0]
+    test_M = test_df[test_df['CODE_GENDER']==0]
+
+    train_F = train_df[train_df['CODE_GENDER']==1]
+    test_F = test_df[test_df['CODE_GENDER']==1]
+
+    # 不要なカラムを削除
+    train_M.drop('CODE_GENDER',axis=1)
+    test_M.drop('CODE_GENDER',axis=1)
+
+    train_F.drop('CODE_GENDER',axis=1)
+    test_F.drop('CODE_GENDER',axis=1)
+
+    # カラム名をupdate
+    feats = [f for f in train_df.columns if f not in ['TARGET','SK_ID_CURR','SK_ID_BUREAU','SK_ID_PREV','index', 'CODE_GENDER']]
+
+    # maleのモデルを推定
+    oof_preds_m = np.zeros(train_M.shape[0])
+    sub_preds_m = np.zeros(test_M.shape[0])
+    feature_importance_df_m = pd.DataFrame()
+
+    for n_fold, (train_idx, valid_idx) in enumerate(folds.split(train_M[feats], train_M['TARGET'])):
+        train_x, train_y = train_M[feats].iloc[train_idx], train_M['TARGET'].iloc[train_idx]
+        valid_x, valid_y = train_M[feats].iloc[valid_idx], train_M['TARGET'].iloc[valid_idx]
+
+        # set data structure
+        lgb_train = lgb.Dataset(train_x,
+                                label=train_y,
+                                free_raw_data=False)
+        lgb_test = lgb.Dataset(valid_x,
+                               label=valid_y,
+                               free_raw_data=False)
+
+        # モデルごとのパラメータをupdateしました
+        params = {
+                'device' : 'gpu',
+                'task': 'train',
+                'objective': 'binary',
+                'metric': {'auc'},
+                'num_threads': -1,
+                'learning_rate': 0.02,
+                'num_iteration': 10000,
+                'num_leaves': 511,
+                'colsample_bytree': 0.1002441743,
+                'subsample': 0.8066173666,
+                'max_depth': 7,
+                'reg_alpha': 9.4011987901,
+                'reg_lambda': 7.3179530787,
+                'min_split_gain': 0.8694604688,
+                'min_child_weight': 45,
+                'min_data_in_leaf': 322,
+                'verbose': -1,
+                'seed':326,
+                'bagging_seed':326,
+                'drop_seed':326
+                }
+
+        clf = lgb.train(
+                        params,
+                        lgb_train,
+                        valid_sets=[lgb_train, lgb_test],
+                        valid_names=['train', 'test'],
+                        early_stopping_rounds= 200,
+                        verbose_eval=100
+                        )
+
+        oof_preds_m[valid_idx] = clf.predict(valid_x, num_iteration=clf.best_iteration)
+        sub_preds_m += clf.predict(test_M[feats], num_iteration=clf.best_iteration) / folds.n_splits
+
+        fold_importance_df = pd.DataFrame()
+        fold_importance_df["feature"] = feats
+        fold_importance_df["importance"] = clf.feature_importance(importance_type='gain', iteration=clf.best_iteration)
+        fold_importance_df["fold"] = n_fold + 1
+        feature_importance_df_m = pd.concat([feature_importance_df_m, fold_importance_df], axis=0)
+        print('Fold %2d AUC : %.6f' % (n_fold + 1, roc_auc_score(valid_y, oof_preds_m[valid_idx])))
+        del clf, train_x, train_y, valid_x, valid_y
+        gc.collect()
+
+    print('Full AUC score %.6f' % roc_auc_score(train_M['TARGET'], oof_preds_m))
+
+    # femaleのモデルを推定
+    oof_preds_f = np.zeros(train_F.shape[0])
+    sub_preds_f = np.zeros(test_F.shape[0])
+    feature_importance_df_f = pd.DataFrame()
+
+    for n_fold, (train_idx, valid_idx) in enumerate(folds.split(train_F[feats], train_F['TARGET'])):
+        train_x, train_y = train_F[feats].iloc[train_idx], train_F['TARGET'].iloc[train_idx]
+        valid_x, valid_y = train_F[feats].iloc[valid_idx], train_F['TARGET'].iloc[valid_idx]
+
+        # set data structure
+        lgb_train = lgb.Dataset(train_x,
+                                label=train_y,
+                                free_raw_data=False)
+        lgb_test = lgb.Dataset(valid_x,
+                               label=valid_y,
+                               free_raw_data=False)
+
+        # モデルごとのパラメータをupdateしました
+        params = {
+                'device' : 'gpu',
+                'task': 'train',
+                'objective': 'binary',
+                'metric': {'auc'},
+                'num_threads': -1,
+                'learning_rate': 0.02,
+                'num_iteration': 10000,
+                'num_leaves': 273,
+                'colsample_bytree': 0.1463185817,
+                'subsample': 0.0093464293,
+                'max_depth': 5,
+                'reg_alpha': 8.4393120346,
+                'reg_lambda': 9.2681783744,
+                'min_split_gain': 0.1439947237,
+                'min_child_weight': 30,
+                'min_data_in_leaf': 442,
+                'verbose': -1,
+                'seed':326,
+                'bagging_seed':326,
+                'drop_seed':326
+                }
+
+        clf = lgb.train(
+                        params,
+                        lgb_train,
+                        valid_sets=[lgb_train, lgb_test],
+                        valid_names=['train', 'test'],
+                        early_stopping_rounds= 200,
+                        verbose_eval=100
+                        )
+
+        oof_preds_f[valid_idx] = clf.predict(valid_x, num_iteration=clf.best_iteration)
+        sub_preds_f += clf.predict(test_F[feats], num_iteration=clf.best_iteration) / folds.n_splits
+
+        fold_importance_df = pd.DataFrame()
+        fold_importance_df["feature"] = feats
+        fold_importance_df["importance"] = clf.feature_importance(importance_type='gain', iteration=clf.best_iteration)
+        fold_importance_df["fold"] = n_fold + 1
+        feature_importance_df_f = pd.concat([feature_importance_df_f, fold_importance_df], axis=0)
+        print('Fold %2d AUC : %.6f' % (n_fold + 1, roc_auc_score(valid_y, oof_preds_f[valid_idx])))
+        del clf, train_x, train_y, valid_x, valid_y
+        gc.collect()
+
+    print('Full AUC score %.6f' % roc_auc_score(train_F['TARGET'], oof_preds_f))
+
+    # Write submission file and plot feature importance
+    if not debug:
+
+        # AUDスコアを上げるため提出ファイルの調整を追加→これは最終段階で使いましょう
+#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > 0.700 else x)
+#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x < 0.002 else x)
+
+        # 分離前モデルの予測値を保存
+        test_df['TARGET'] = sub_preds
+        test_df[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name, index= False)
+
+        # 分離後の予測値
+        test_M['TARGET'] = sub_preds_m
+        test_F['TARGET'] = sub_preds_f
+
+        # 性別ごとのデータを結合
+        test_df_split = pd.concat([test_M, test_F])
+        test_df_split = test_df.sort_values(by='SK_ID_CURR')
+
+        # 分離後の予測値を保存
+        test_df_split[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name_split, index= False)
+
+    return feature_importance_df, feature_importance_df_m, feature_importance_df_f
 
 # Display/plot feature importance
 def display_importances(feature_importance_df_, outputpath, csv_outputpath):
@@ -461,6 +619,7 @@ def display_importances(feature_importance_df_, outputpath, csv_outputpath):
 def main(debug = False, use_csv=False):
     num_rows = 10000 if debug else None
     if False:
+        # TODO # appデータだけうまく読み込めませんでした
         df = pd.read_csv('APP.csv', index_col=0)
     else:
         df = application_train_test(num_rows)
@@ -526,35 +685,15 @@ def main(debug = False, use_csv=False):
         df = df.drop(dropcolumns, axis=1)
         """
 
-        # split data by CODE_GENDER
-        df_M = df[df['CODE_GENDER']==0]
-        df_F = df[df['CODE_GENDER']==1]
-
-#        df_M.to_csv('data_m.csv')
-#        df_F.to_csv('data_f.csv')
-
-        df_M.drop('CODE_GENDER',axis=1)
-        df_F.drop('CODE_GENDER',axis=1)
-
         # 性別毎にモデルを推定
-        feat_importance_M, test_df_M = kfold_lightgbm(df_M, num_folds= 5, gender='M', stratified= False, debug= debug)
-        feat_importance_F, test_df_F = kfold_lightgbm(df_F, num_folds= 5, gender='F', stratified= False, debug= debug)
+        feat_importance, feat_importance_m, feat_importance_f = kfold_lightgbm(df, num_folds= 5, stratified= False, debug= debug)
 
-        # 性別ごとのデータを結合
-        test_df = pd.concat([test_df_M, test_df_F])
-        test_df = test_df.sort_values(by='SK_ID_CURR')
-
-        # AUDスコアを上げるため提出ファイルの調整を追加
-#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > 0.700 else x)
-#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x < 0.002 else x)
-
-        if not debug:
-            test_df.to_csv(submission_file_name, index= False)
-
-        display_importances(feat_importance_M ,'lgbm_importances_M.png', 'feature_importance_M.csv')
-        display_importances(feat_importance_F ,'lgbm_importances_F.png', 'feature_importance_F.csv')
+        display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance.csv')
+        display_importances(feat_importance_m ,'lgbm_importances_M.png', 'feature_importance_M.csv')
+        display_importances(feat_importance_f ,'lgbm_importances_F.png', 'feature_importance_F.csv')
 
 if __name__ == "__main__":
-    submission_file_name = "submission_add_feature_split.csv"
+    submission_file_name = "submission_add_feature.csv"
+    submission_file_name_split = "submission_add_feature_split.csv"
     with timer("Full model run"):
         main(use_csv=True)
