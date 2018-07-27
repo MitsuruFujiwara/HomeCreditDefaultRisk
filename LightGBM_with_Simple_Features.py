@@ -423,11 +423,23 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
 
     print('Full AUC score %.6f' % roc_auc_score(train_df['TARGET'], oof_preds))
 
+    if not debug:
+        # AUDスコアを上げるため提出ファイルの調整を追加→これは最終段階で使いましょう
+#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > 0.700 else x)
+#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x < 0.002 else x)
+
+        # 分離前モデルの予測値を保存
+        test_df['TARGET'] = sub_preds
+        test_df[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name, index= False)
+
     """
     ここから追加の処理
     CODE_GENDERでデータを分割し、全体モデルによる推定値（oof_preds）を変数として追加、性別毎に2回目の推定を行う
-    """
 
+    # 分離したモデルは精度そんなでもないのでとりあえずコメントアウトしておきます
+
+    """
+    """
     # 全体モデルの推定値を変数に追加
     train_df['oof_preds']=oof_preds
     test_df['oof_preds']=sub_preds
@@ -511,6 +523,7 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
         del clf, train_x, train_y, valid_x, valid_y
         gc.collect()
 
+
     print('Full AUC score %.6f' % roc_auc_score(train_M['TARGET'], oof_preds_m))
 
     # femaleのモデルを推定
@@ -580,14 +593,6 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
     # Write submission file and plot feature importance
     if not debug:
 
-        # AUDスコアを上げるため提出ファイルの調整を追加→これは最終段階で使いましょう
-#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > 0.700 else x)
-#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x < 0.002 else x)
-
-        # 分離前モデルの予測値を保存
-        test_df['TARGET'] = sub_preds
-        test_df[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name, index= False)
-
         # 分離後の予測値
         test_M['TARGET'] = sub_preds_m
         test_F['TARGET'] = sub_preds_f
@@ -600,6 +605,8 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
         test_df_split[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name_split, index= False)
 
     return feature_importance_df, feature_importance_df_m, feature_importance_df_f
+    """
+    return feature_importance_df
 
 # Display/plot feature importance
 def display_importances(feature_importance_df_, outputpath, csv_outputpath):
@@ -686,11 +693,14 @@ def main(debug = False, use_csv=False):
         """
 
         # 性別毎にモデルを推定
-        feat_importance, feat_importance_m, feat_importance_f = kfold_lightgbm(df, num_folds= 5, stratified= False, debug= debug)
+#        feat_importance, feat_importance_m, feat_importance_f = kfold_lightgbm(df, num_folds= 5, stratified= True, debug= debug)
+
+        # 通常モデルのみ推定
+        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified= True, debug= debug)
 
         display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance.csv')
-        display_importances(feat_importance_m ,'lgbm_importances_M.png', 'feature_importance_M.csv')
-        display_importances(feat_importance_f ,'lgbm_importances_F.png', 'feature_importance_F.csv')
+#        display_importances(feat_importance_m ,'lgbm_importances_M.png', 'feature_importance_M.csv')
+#        display_importances(feat_importance_f ,'lgbm_importances_F.png', 'feature_importance_F.csv')
 
 if __name__ == "__main__":
     submission_file_name = "submission_add_feature.csv"
