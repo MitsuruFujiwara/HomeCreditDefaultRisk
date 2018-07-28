@@ -424,188 +424,18 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
     print('Full AUC score %.6f' % roc_auc_score(train_df['TARGET'], oof_preds))
 
     if not debug:
+        # 0or1に調整する水準を決定（とりあえず上位下位0.05%以下のものを調整）
+        q_high = test_df['TARGET'].quantile(0.9995)
+        q_low = test_df['TARGET'].quantile(0.0005)
+
         # AUDスコアを上げるため提出ファイルの調整を追加→これは最終段階で使いましょう
-#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > 0.700 else x)
-#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x < 0.002 else x)
+        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > q_high else x)
+        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 0 if x < q_low else x)
 
         # 分離前モデルの予測値を保存
         test_df['TARGET'] = sub_preds
         test_df[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name, index= False)
 
-    """
-    ここから追加の処理
-    CODE_GENDERでデータを分割し、全体モデルによる推定値（oof_preds）を変数として追加、性別毎に2回目の推定を行う
-
-    # 分離したモデルは精度そんなでもないのでとりあえずコメントアウトしておきます
-
-    """
-    """
-    # 全体モデルの推定値を変数に追加
-    train_df['oof_preds']=oof_preds
-    test_df['oof_preds']=sub_preds
-
-    # split data by CODE_GENDER
-    train_M = train_df[train_df['CODE_GENDER']==0]
-    test_M = test_df[test_df['CODE_GENDER']==0]
-
-    train_F = train_df[train_df['CODE_GENDER']==1]
-    test_F = test_df[test_df['CODE_GENDER']==1]
-
-    # 不要なカラムを削除
-    train_M.drop('CODE_GENDER',axis=1)
-    test_M.drop('CODE_GENDER',axis=1)
-
-    train_F.drop('CODE_GENDER',axis=1)
-    test_F.drop('CODE_GENDER',axis=1)
-
-    # カラム名をupdate
-    feats = [f for f in train_df.columns if f not in ['TARGET','SK_ID_CURR','SK_ID_BUREAU','SK_ID_PREV','index', 'CODE_GENDER']]
-
-    # maleのモデルを推定
-    oof_preds_m = np.zeros(train_M.shape[0])
-    sub_preds_m = np.zeros(test_M.shape[0])
-    feature_importance_df_m = pd.DataFrame()
-
-    for n_fold, (train_idx, valid_idx) in enumerate(folds.split(train_M[feats], train_M['TARGET'])):
-        train_x, train_y = train_M[feats].iloc[train_idx], train_M['TARGET'].iloc[train_idx]
-        valid_x, valid_y = train_M[feats].iloc[valid_idx], train_M['TARGET'].iloc[valid_idx]
-
-        # set data structure
-        lgb_train = lgb.Dataset(train_x,
-                                label=train_y,
-                                free_raw_data=False)
-        lgb_test = lgb.Dataset(valid_x,
-                               label=valid_y,
-                               free_raw_data=False)
-
-        # モデルごとのパラメータをupdateしました
-        params = {
-                'device' : 'gpu',
-                'task': 'train',
-                'objective': 'binary',
-                'metric': {'auc'},
-                'num_threads': -1,
-                'learning_rate': 0.02,
-                'num_iteration': 10000,
-                'num_leaves': 511,
-                'colsample_bytree': 0.1002441743,
-                'subsample': 0.8066173666,
-                'max_depth': 7,
-                'reg_alpha': 9.4011987901,
-                'reg_lambda': 7.3179530787,
-                'min_split_gain': 0.8694604688,
-                'min_child_weight': 45,
-                'min_data_in_leaf': 322,
-                'verbose': -1,
-                'seed':326,
-                'bagging_seed':326,
-                'drop_seed':326
-                }
-
-        clf = lgb.train(
-                        params,
-                        lgb_train,
-                        valid_sets=[lgb_train, lgb_test],
-                        valid_names=['train', 'test'],
-                        early_stopping_rounds= 200,
-                        verbose_eval=100
-                        )
-
-        oof_preds_m[valid_idx] = clf.predict(valid_x, num_iteration=clf.best_iteration)
-        sub_preds_m += clf.predict(test_M[feats], num_iteration=clf.best_iteration) / folds.n_splits
-
-        fold_importance_df = pd.DataFrame()
-        fold_importance_df["feature"] = feats
-        fold_importance_df["importance"] = clf.feature_importance(importance_type='gain', iteration=clf.best_iteration)
-        fold_importance_df["fold"] = n_fold + 1
-        feature_importance_df_m = pd.concat([feature_importance_df_m, fold_importance_df], axis=0)
-        print('Fold %2d AUC : %.6f' % (n_fold + 1, roc_auc_score(valid_y, oof_preds_m[valid_idx])))
-        del clf, train_x, train_y, valid_x, valid_y
-        gc.collect()
-
-
-    print('Full AUC score %.6f' % roc_auc_score(train_M['TARGET'], oof_preds_m))
-
-    # femaleのモデルを推定
-    oof_preds_f = np.zeros(train_F.shape[0])
-    sub_preds_f = np.zeros(test_F.shape[0])
-    feature_importance_df_f = pd.DataFrame()
-
-    for n_fold, (train_idx, valid_idx) in enumerate(folds.split(train_F[feats], train_F['TARGET'])):
-        train_x, train_y = train_F[feats].iloc[train_idx], train_F['TARGET'].iloc[train_idx]
-        valid_x, valid_y = train_F[feats].iloc[valid_idx], train_F['TARGET'].iloc[valid_idx]
-
-        # set data structure
-        lgb_train = lgb.Dataset(train_x,
-                                label=train_y,
-                                free_raw_data=False)
-        lgb_test = lgb.Dataset(valid_x,
-                               label=valid_y,
-                               free_raw_data=False)
-
-        # モデルごとのパラメータをupdateしました
-        params = {
-                'device' : 'gpu',
-                'task': 'train',
-                'objective': 'binary',
-                'metric': {'auc'},
-                'num_threads': -1,
-                'learning_rate': 0.02,
-                'num_iteration': 10000,
-                'num_leaves': 273,
-                'colsample_bytree': 0.1463185817,
-                'subsample': 0.0093464293,
-                'max_depth': 5,
-                'reg_alpha': 8.4393120346,
-                'reg_lambda': 9.2681783744,
-                'min_split_gain': 0.1439947237,
-                'min_child_weight': 30,
-                'min_data_in_leaf': 442,
-                'verbose': -1,
-                'seed':326,
-                'bagging_seed':326,
-                'drop_seed':326
-                }
-
-        clf = lgb.train(
-                        params,
-                        lgb_train,
-                        valid_sets=[lgb_train, lgb_test],
-                        valid_names=['train', 'test'],
-                        early_stopping_rounds= 200,
-                        verbose_eval=100
-                        )
-
-        oof_preds_f[valid_idx] = clf.predict(valid_x, num_iteration=clf.best_iteration)
-        sub_preds_f += clf.predict(test_F[feats], num_iteration=clf.best_iteration) / folds.n_splits
-
-        fold_importance_df = pd.DataFrame()
-        fold_importance_df["feature"] = feats
-        fold_importance_df["importance"] = clf.feature_importance(importance_type='gain', iteration=clf.best_iteration)
-        fold_importance_df["fold"] = n_fold + 1
-        feature_importance_df_f = pd.concat([feature_importance_df_f, fold_importance_df], axis=0)
-        print('Fold %2d AUC : %.6f' % (n_fold + 1, roc_auc_score(valid_y, oof_preds_f[valid_idx])))
-        del clf, train_x, train_y, valid_x, valid_y
-        gc.collect()
-
-    print('Full AUC score %.6f' % roc_auc_score(train_F['TARGET'], oof_preds_f))
-
-    # Write submission file and plot feature importance
-    if not debug:
-
-        # 分離後の予測値
-        test_M['TARGET'] = sub_preds_m
-        test_F['TARGET'] = sub_preds_f
-
-        # 性別ごとのデータを結合
-        test_df_split = pd.concat([test_M, test_F])
-        test_df_split = test_df.sort_values(by='SK_ID_CURR')
-
-        # 分離後の予測値を保存
-        test_df_split[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name_split, index= False)
-
-    return feature_importance_df, feature_importance_df_m, feature_importance_df_f
-    """
     return feature_importance_df
 
 # Display/plot feature importance
@@ -625,9 +455,10 @@ def display_importances(feature_importance_df_, outputpath, csv_outputpath):
 
 def main(debug = False, use_csv=False):
     num_rows = 10000 if debug else None
-    if False:
+    if use_csv:
         # TODO # appデータだけうまく読み込めませんでした
-        df = pd.read_csv('APP.csv', index_col=0)
+#        df = pd.read_csv('APP.csv', index_col=0)
+        df = application_train_test(num_rows)
     else:
         df = application_train_test(num_rows)
         df.to_csv('APP.csv', index=False)
@@ -692,15 +523,10 @@ def main(debug = False, use_csv=False):
         df = df.drop(dropcolumns, axis=1)
         """
 
-        # 性別毎にモデルを推定
-#        feat_importance, feat_importance_m, feat_importance_f = kfold_lightgbm(df, num_folds= 5, stratified= True, debug= debug)
-
         # 通常モデルのみ推定
         feat_importance = kfold_lightgbm(df, num_folds= 5, stratified= True, debug= debug)
 
         display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance.csv')
-#        display_importances(feat_importance_m ,'lgbm_importances_M.png', 'feature_importance_M.csv')
-#        display_importances(feat_importance_f ,'lgbm_importances_F.png', 'feature_importance_F.csv')
 
 if __name__ == "__main__":
     submission_file_name = "submission_add_feature.csv"
