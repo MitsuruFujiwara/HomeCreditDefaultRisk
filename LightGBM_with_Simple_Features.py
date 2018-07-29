@@ -283,7 +283,7 @@ def pos_cash(num_rows = None, nan_as_category = True):
         'SK_DPD_DEF': ['max', 'mean'],
         'MONTHS_BALANCE_INSTALLMENT_FUTURE_RATIO':['max','min','var','skew'],
         'MONTHS_BALANCE_INSTALLMENT_RATIO':['max','min','var','skew'],
-        'INSTALMENT_FUTURE_RATIO':['max','min','var','skew']
+        'INSTALMENT_FUTURE_RATIO':['min','var','skew']
     }
     for cat in cat_cols:
         aggregations[cat] = ['mean']
@@ -339,7 +339,45 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
     cc, cat_cols = one_hot_encoder(cc, nan_as_category= True)
     # General aggregations
     cc.drop(['SK_ID_PREV'], axis= 1, inplace = True)
-    cc_agg = cc.groupby('SK_ID_CURR').agg([ 'max', 'mean', 'sum', 'var'])
+
+    # 特徴量追加するやでー
+    cc['AMT_PAYMENT_CURRENT_TOTAL_RATIO'] = cc['AMT_PAYMENT_CURRENT']*1.0/cc['AMT_PAYMENT_TOTAL_CURRENT']
+    cc['CNT_DRAWINGS_ATM_CURRENT_RATIO'] = cc['CNT_DRAWINGS_ATM_CURRENT']*1.0/cc['CNT_DRAWINGS_CURRENT']
+    cc['AMT_INST_MIN_REGULARITY_CURRENT_RATIO'] = cc['AMT_INST_MIN_REGULARITY']*1.0/cc['AMT_PAYMENT_CURRENT']
+    cc['AMT_INST_MIN_REGULARITY_TOTAL_CURRENT_RATIO'] = cc['AMT_INST_MIN_REGULARITY']*1.0/cc['AMT_PAYMENT_TOTAL_CURRENT']
+
+    # 処理も追加じゃー
+    aggregations = {
+        'MONTHS_BALANCE':[ 'max', 'mean', 'sum', 'var'], 
+        'AMT_BALANCE':[ 'max', 'mean', 'sum', 'var'],
+        'AMT_CREDIT_LIMIT_ACTUAL':[ 'max', 'mean', 'sum', 'var'], 
+        'AMT_DRAWINGS_ATM_CURRENT':[ 'max', 'mean', 'sum', 'var'],
+        'AMT_DRAWINGS_CURRENT':[ 'max', 'mean', 'sum', 'var'], 
+        'AMT_DRAWINGS_OTHER_CURRENT':[ 'max', 'mean', 'sum', 'var'],
+        'AMT_DRAWINGS_POS_CURRENT':[ 'max', 'mean', 'sum', 'var'], 
+        'AMT_INST_MIN_REGULARITY':[ 'max', 'mean', 'sum', 'var'],
+        'AMT_PAYMENT_CURRENT':[ 'max', 'mean', 'sum', 'var'], 
+        'AMT_PAYMENT_TOTAL_CURRENT':[ 'max', 'mean', 'sum', 'var'],
+        'AMT_RECEIVABLE_PRINCIPAL':[ 'max', 'mean', 'sum', 'var'], 
+        'AMT_RECIVABLE':[ 'max', 'mean', 'sum', 'var'], 
+        'AMT_TOTAL_RECEIVABLE':[ 'max', 'mean', 'sum', 'var'],
+        'CNT_DRAWINGS_ATM_CURRENT':[ 'max', 'mean', 'sum', 'var'], 
+        'CNT_DRAWINGS_CURRENT':[ 'max', 'mean', 'sum', 'var'],
+        'CNT_DRAWINGS_OTHER_CURRENT':[ 'max', 'mean', 'sum', 'var'], 
+        'CNT_DRAWINGS_POS_CURRENT':[ 'max', 'mean', 'sum', 'var'],
+        'CNT_INSTALMENT_MATURE_CUM':[ 'max', 'mean', 'sum', 'var'], 
+        'SK_DPD':[ 'max', 'mean', 'sum', 'var'], 
+        'SK_DPD_DEF':[ 'max', 'mean', 'sum', 'var'],
+        'AMT_PAYMENT_CURRENT_TOTAL_RATIO': ['mean','var'],
+        'CNT_DRAWINGS_ATM_CURRENT_RATIO': [ 'max', 'mean', 'sum', 'var'],
+        'AMT_INST_MIN_REGULARITY_CURRENT_RATIO': [ 'max', 'mean', 'sum', 'var'],
+        'AMT_INST_MIN_REGULARITY_TOTAL_CURRENT_RATIO': [ 'max', 'mean', 'sum', 'var']
+    }
+    for cat in cat_cols:
+        aggregations[cat] = ['mean']
+
+    #cc_agg = cc.groupby('SK_ID_CURR').agg([ 'max', 'mean', 'sum', 'var'])
+    cc_agg = cc.groupby('SK_ID_CURR').agg(aggregations)
     cc_agg.columns = pd.Index(['CC_' + e[0] + "_" + e[1].upper() for e in cc_agg.columns.tolist()])
     # Count credit card lines
     cc_agg['CC_COUNT'] = cc.groupby('SK_ID_CURR').size()
