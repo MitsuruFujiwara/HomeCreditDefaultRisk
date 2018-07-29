@@ -7,10 +7,11 @@ from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.preprocessing import MinMaxScaler
 from keras.callbacks import EarlyStopping
-from keras.models import Sequential, Model
+from keras.models import Sequential, Model, load_model
 from keras.layers import Dense, Activation, Input
 from keras.layers.core import Dropout
 from keras.regularizers import l2
+from keras.optimizers import SGD
 
 from roc_callback import roc_callback
 from LightGBM_with_Simple_Features import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test
@@ -54,8 +55,8 @@ def autoencoder(encoding_dim, decoding_dim, activation, X, nb_epoch):
     input_data = Input(shape=(encoding_dim,))
 
     # set layer
-    encoded = Dense(decoding_dim, activation=activation, W_regularizer=l2(0.0001))(input_data)
-    decoded = Dense(encoding_dim, activation=activation, W_regularizer=l2(0.0001))(encoded)
+    encoded = Dense(decoding_dim, activation=activation, W_regularizer=l2(0.001))(input_data)
+    decoded = Dense(encoding_dim, activation=activation, W_regularizer=l2(0.001))(encoded)
 
     # set autoencoder
     _autoencoder = Model(input=input_data, output=decoded)
@@ -75,26 +76,25 @@ def _model(input_dim):
     モデルのパラメータなど変える場合は基本的にこの中をいじればおｋ
     """
     model = Sequential()
-    model.add(Dense(output_dim=1000, input_dim=input_dim, W_regularizer=l2(0.001)))
+    model.add(Dense(output_dim=1000, input_dim=input_dim, W_regularizer=l2(0.01)))
     model.add(Activation('relu'))
     model.add(Dropout(0.8))
-    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.001)))
+    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.01)))
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.001)))
+    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.01)))
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(output_dim=500, input_dim=1000, W_regularizer=l2(0.001)))
+    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.01)))
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(output_dim=1, input_dim=500, W_regularizer=l2(0.001)))
+    model.add(Dense(output_dim=1, input_dim=1000, W_regularizer=l2(0.01)))
     model.add(Activation('sigmoid'))
     return model
 
 def getInitialWeights(trX, num_epoc, use_saved_params=False):
 
     print("Starting AutoEncoder. Train shape: {}".format(trX[0].shape))
-
 
     # 各層のinitial weightsを取得するため空のモデルを生成しておきます
     base_model = _model(trX[0].shape[1])
@@ -103,28 +103,38 @@ def getInitialWeights(trX, num_epoc, use_saved_params=False):
     w = base_model.get_weights()
     dims = [w[0].shape[0]] + [_w.shape[0] for _w in w[1::2]]
 
-    # Auto Encoderにより各層のweightを求める
-    encoders = []
-    for i, t in enumerate(dims[:-1]):
-        _X = trX[i]
-        # fit autoencoder
-        _encoder = autoencoder(t, dims[i+1], 'relu', _X, num_epoc)
+    if use_saved_params:
+        # 保存済みのパラメータを使う場合
+        for i, t in enumerate(dims[:-1]):
+            _encoder = load_model('encoder' + str(i) + '.h5')
+            w[i*2] = _encoder.get_weights()[0]
+            w[i*2+1] = _encoder.get_weights()[1]
 
-        # save fitted encoder
-        encoders.append(_encoder)
+            del _encoder
+    else:
+        # 新たにAuto Encoderにより各層のweightを求める場合
+        encoders = []
+        for i, t in enumerate(dims[:-1]):
+            _X = trX[i]
+            # fit autoencoder
+            _encoder = autoencoder(t, dims[i+1], 'relu', _X, num_epoc)
 
-        # generate predicted value (for next encoder)
-        trX.append(_encoder.predict(_X))
+            # save fitted encoder
+            encoders.append(_encoder)
+            _encoder.save('encoder' + str(i) + '.h5')
 
-        del _encoder, _X
+            # generate predicted value (for next encoder)
+            trX.append(_encoder.predict(_X))
 
-    # set initial weights
-    for i, e in enumerate(encoders):
-        w[i*2] = e.get_weights()[0]
-        w[i*2+1] = e.get_weights()[1]
+            del _encoder, _X
 
-    del base_model, encoders
+        # set initial weights
+        for i, e in enumerate(encoders):
+            w[i*2] = e.get_weights()[0]
+            w[i*2+1] = e.get_weights()[1]
 
+        del encoders
+    del base_model
     return w
 
 def kfold_DNN(df, num_folds, stratified = False, debug= False):
@@ -134,7 +144,6 @@ def kfold_DNN(df, num_folds, stratified = False, debug= False):
     # set feature columns
     feats = [f for f in df.columns if f not in ['TARGET','SK_ID_CURR','SK_ID_BUREAU','SK_ID_PREV','index']]
 
-
     # 欠損値を平均で埋めておきます
     df[feats] = df[feats].astype('float64')
     df[feats] = df[feats].replace([np.inf, -np.inf], np.nan)
@@ -143,11 +152,11 @@ def kfold_DNN(df, num_folds, stratified = False, debug= False):
     # DNN用のスケーリング
     ms = MinMaxScaler()
     df_ms = pd.DataFrame(ms.fit_transform(df[feats]), columns=feats, index=df.index)
-    df_ms['TARGET']=df['TARGET']
+    df_ms[['SK_ID_CURR', 'TARGET']]=df[['SK_ID_CURR', 'TARGET']]
 
     # 事前学習でモデルの初期値を求める #ここではTESTデータも含めて全てのデータを使います。
     trX = [np.array(df_ms[feats])]
-    weights = getInitialWeights(trX, 5)
+    weights = getInitialWeights(trX, num_epoc=5, use_saved_params=False)
 
     """
     k-foldによるDNNモデルの推定
@@ -181,13 +190,13 @@ def kfold_DNN(df, num_folds, stratified = False, debug= False):
         model = _model(train_x.shape[1])
 
         # set early stopping
-        es_cb = EarlyStopping(monitor='val_loss', patience=10, verbose=0, mode='auto')
+        es_cb = EarlyStopping(monitor='val_loss', patience=5, verbose=0, mode='auto')
 
         # set model weights
         model.set_weights(weights)
 
         # compile model
-        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+        model.compile(loss='binary_crossentropy', optimizer=SGD(lr=3.0), metrics=['accuracy'])
 
         # training
         history = model.fit(train_x, train_y, nb_epoch=1000, verbose=1,
@@ -195,8 +204,8 @@ def kfold_DNN(df, num_folds, stratified = False, debug= False):
                             callbacks=[roc_callback(training_data=(train_x, train_y),
                             validation_data=(valid_x, valid_y)),es_cb])
 
-        oof_preds[valid_idx] = model.predict_proba(valid_x)
-        sub_preds += clf.predict(test_df[feats]) / folds.n_splits
+        oof_preds[valid_idx] = model.predict_proba(valid_x).reshape(valid_y.shape[0])
+        sub_preds += model.predict_proba(test_df[feats]).reshape(test_df.shape[0]) / folds.n_splits
 
         print('Fold %2d AUC : %.6f' % (n_fold + 1, roc_auc_score(valid_y, oof_preds[valid_idx])))
 
