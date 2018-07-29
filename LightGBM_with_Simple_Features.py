@@ -15,6 +15,7 @@ from sklearn.model_selection import KFold, StratifiedKFold
 import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
+import os
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -270,11 +271,19 @@ def previous_applications(num_rows = None, nan_as_category = True):
 def pos_cash(num_rows = None, nan_as_category = True):
     pos = pd.read_csv('POS_CASH_balance.csv', nrows = num_rows)
     pos, cat_cols = one_hot_encoder(pos, nan_as_category= True)
+
+    # added_feature
+    pos['MONTHS_BALANCE_INSTALLMENT_FUTURE_RATIO'] = pos['MONTHS_BALANCE']*(-1.0)/pos['CNT_INSTALMENT_FUTURE']
+    pos['MONTHS_BALANCE_INSTALLMENT_RATIO'] = pos['MONTHS_BALANCE']*(-1.0)/pos['CNT_INSTALMENT']
+    pos['INSTALMENT_FUTURE_RATIO'] = pos['CNT_INSTALMENT_FUTURE']*1.0/pos['CNT_INSTALMENT']
     # Features
     aggregations = {
         'MONTHS_BALANCE': ['max', 'mean', 'size'],
         'SK_DPD': ['max', 'mean'],
-        'SK_DPD_DEF': ['max', 'mean']
+        'SK_DPD_DEF': ['max', 'mean'],
+        'MONTHS_BALANCE_INSTALLMENT_FUTURE_RATIO':['max','min','var','skew'],
+        'MONTHS_BALANCE_INSTALLMENT_RATIO':['max','min','var','skew'],
+        'INSTALMENT_FUTURE_RATIO':['max','min','var','skew']
     }
     for cat in cat_cols:
         aggregations[cat] = ['mean']
@@ -464,10 +473,16 @@ def main(debug = False, use_csv=False):
         df.to_csv('APP.csv', index=False)
     with timer("Process bureau and bureau_balance"):
         if use_csv:
-            bureau = pd.read_csv('BUREAU.csv', index_col='SK_ID_CURR')
+            if os.environ['USER'] == 'daiyamita':
+                pass
+            else:
+                bureau = pd.read_csv('BUREAU.csv', index_col='SK_ID_CURR')
         else:
             bureau = bureau_and_balance(num_rows)
-            bureau.to_csv('BUREAU.csv')
+            if os.environ['USER'] == 'daiyamita':
+                pass
+            else:
+                bureau.to_csv('BUREAU.csv')
         print("Bureau df shape:", bureau.shape)
         df = df.join(bureau, how='left', on='SK_ID_CURR')
         del bureau
@@ -532,4 +547,7 @@ if __name__ == "__main__":
     submission_file_name = "submission_add_feature.csv"
     submission_file_name_split = "submission_add_feature_split.csv"
     with timer("Full model run"):
-        main(use_csv=True)
+        if os.environ['USER'] == 'daiyamita':
+            main(debug = True ,use_csv=False)
+        else:
+            main(use_csv=True)
