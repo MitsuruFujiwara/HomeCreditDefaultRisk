@@ -9,7 +9,6 @@ import gc
 import time
 
 from contextlib import contextmanager
-from lightgbm import LGBMClassifier
 from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.model_selection import KFold, StratifiedKFold
 import matplotlib.pyplot as plt
@@ -348,25 +347,25 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
 
     # 処理も追加じゃー
     aggregations = {
-        'MONTHS_BALANCE':[ 'max', 'mean', 'sum', 'var'], 
+        'MONTHS_BALANCE':[ 'max', 'mean', 'sum', 'var'],
         'AMT_BALANCE':[ 'max', 'mean', 'sum', 'var'],
-        'AMT_CREDIT_LIMIT_ACTUAL':[ 'max', 'mean', 'sum', 'var'], 
+        'AMT_CREDIT_LIMIT_ACTUAL':[ 'max', 'mean', 'sum', 'var'],
         'AMT_DRAWINGS_ATM_CURRENT':[ 'max', 'mean', 'sum', 'var'],
-        'AMT_DRAWINGS_CURRENT':[ 'max', 'mean', 'sum', 'var'], 
+        'AMT_DRAWINGS_CURRENT':[ 'max', 'mean', 'sum', 'var'],
         'AMT_DRAWINGS_OTHER_CURRENT':[ 'max', 'mean', 'sum', 'var'],
-        'AMT_DRAWINGS_POS_CURRENT':[ 'max', 'mean', 'sum', 'var'], 
+        'AMT_DRAWINGS_POS_CURRENT':[ 'max', 'mean', 'sum', 'var'],
         'AMT_INST_MIN_REGULARITY':[ 'max', 'mean', 'sum', 'var'],
-        'AMT_PAYMENT_CURRENT':[ 'max', 'mean', 'sum', 'var'], 
+        'AMT_PAYMENT_CURRENT':[ 'max', 'mean', 'sum', 'var'],
         'AMT_PAYMENT_TOTAL_CURRENT':[ 'max', 'mean', 'sum', 'var'],
-        'AMT_RECEIVABLE_PRINCIPAL':[ 'max', 'mean', 'sum', 'var'], 
-        'AMT_RECIVABLE':[ 'max', 'mean', 'sum', 'var'], 
+        'AMT_RECEIVABLE_PRINCIPAL':[ 'max', 'mean', 'sum', 'var'],
+        'AMT_RECIVABLE':[ 'max', 'mean', 'sum', 'var'],
         'AMT_TOTAL_RECEIVABLE':[ 'max', 'mean', 'sum', 'var'],
-        'CNT_DRAWINGS_ATM_CURRENT':[ 'max', 'mean', 'sum', 'var'], 
+        'CNT_DRAWINGS_ATM_CURRENT':[ 'max', 'mean', 'sum', 'var'],
         'CNT_DRAWINGS_CURRENT':[ 'max', 'mean', 'sum', 'var'],
-        'CNT_DRAWINGS_OTHER_CURRENT':[ 'max', 'mean', 'sum', 'var'], 
+        'CNT_DRAWINGS_OTHER_CURRENT':[ 'max', 'mean', 'sum', 'var'],
         'CNT_DRAWINGS_POS_CURRENT':[ 'max', 'mean', 'sum', 'var'],
-        'CNT_INSTALMENT_MATURE_CUM':[ 'max', 'mean', 'sum', 'var'], 
-        'SK_DPD':[ 'max', 'mean', 'sum', 'var'], 
+        'CNT_INSTALMENT_MATURE_CUM':[ 'max', 'mean', 'sum', 'var'],
+        'SK_DPD':[ 'max', 'mean', 'sum', 'var'],
         'SK_DPD_DEF':[ 'max', 'mean', 'sum', 'var'],
         'AMT_PAYMENT_CURRENT_TOTAL_RATIO': ['mean','var'],
         'CNT_DRAWINGS_ATM_CURRENT_RATIO': [ 'max', 'mean', 'sum', 'var'],
@@ -425,6 +424,7 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
         # LightGBM parameters found by Bayesian optimization
         params = {
                 'device' : 'gpu',
+#                'gpu_use_dp':True, #これで倍精度演算できるっぽいです
                 'task': 'train',
 #                'boosting_type': 'dart',
                 'objective': 'binary',
@@ -432,15 +432,15 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
                 'num_threads': -1,
                 'learning_rate': 0.02,
                 'num_iteration': 10000,
-                'num_leaves': 510,
-                'colsample_bytree': 0.1417420324,
-                'subsample': 0.9559916094,
+                'num_leaves': 39,
+                'colsample_bytree': 0.0587705926,
+                'subsample': 0.5336340435,
                 'max_depth': 7,
-                'reg_alpha': 7.818042399,
-                'reg_lambda': 3.1091970455,
-                'min_split_gain': 0.498413589,
-                'min_child_weight': 43,
-                'min_data_in_leaf': 997,
+                'reg_alpha': 8.9675927624,
+                'reg_lambda': 9.8953903428,
+                'min_split_gain': 0.911786867,
+                'min_child_weight': 37,
+                'min_data_in_leaf': 629,
                 'verbose': -1,
                 'seed':326,
                 'bagging_seed':326,
@@ -566,18 +566,15 @@ def main(debug = False, use_csv=False):
         del cc
         gc.collect()
     with timer("Run LightGBM with kfold"):
-        # 不要なカラムを落とさない方がスコア高かったのでとりあえずここはコメントアウトしてます
-        """
         # 不要なカラムを落とす処理を追加
         dropcolumns=pd.read_csv('feature_importance_not_to_use.csv')
         dropcolumns = dropcolumns['feature'].tolist()
         dropcolumns = [d for d in dropcolumns if d in df.columns.tolist()]
 
         df = df.drop(dropcolumns, axis=1)
-        """
 
         # 通常モデルのみ推定
-        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified= False, debug= debug)
+        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified=False, debug= debug)
 
         display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance.csv')
 
