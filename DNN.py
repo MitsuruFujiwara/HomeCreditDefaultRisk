@@ -55,8 +55,8 @@ def autoencoder(encoding_dim, decoding_dim, activation, X, nb_epoch):
     input_data = Input(shape=(encoding_dim,))
 
     # set layer
-    encoded = Dense(decoding_dim, activation=activation, W_regularizer=l2(0.001))(input_data)
-    decoded = Dense(encoding_dim, activation=activation, W_regularizer=l2(0.001))(encoded)
+    encoded = Dense(decoding_dim, activation=activation, W_regularizer=l2(0.0001))(input_data)
+    decoded = Dense(encoding_dim, activation=activation, W_regularizer=l2(0.0001))(encoded)
 
     # set autoencoder
     _autoencoder = Model(input=input_data, output=decoded)
@@ -76,19 +76,13 @@ def _model(input_dim):
     モデルのパラメータなど変える場合は基本的にこの中をいじればおｋ
     """
     model = Sequential()
-    model.add(Dense(output_dim=1000, input_dim=input_dim, W_regularizer=l2(0.01)))
+    model.add(Dense(output_dim=1000, input_dim=input_dim, W_regularizer=l2(0.0001)))
     model.add(Activation('relu'))
     model.add(Dropout(0.8))
-    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.01)))
+    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.0001)))
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.01)))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.5))
-    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.01)))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.5))
-    model.add(Dense(output_dim=1, input_dim=1000, W_regularizer=l2(0.01)))
+    model.add(Dense(output_dim=1, input_dim=1000, W_regularizer=l2(0.0001)))
     model.add(Activation('sigmoid'))
     return model
 
@@ -196,7 +190,7 @@ def kfold_DNN(df, num_folds, stratified = False, debug= False):
         model.set_weights(weights)
 
         # compile model
-        model.compile(loss='binary_crossentropy', optimizer=SGD(lr=3.0), metrics=['accuracy'])
+        model.compile(loss='binary_crossentropy', optimizer=SGD(lr=0.03), metrics=['accuracy'])
 
         # training
         history = model.fit(train_x, train_y, nb_epoch=1000, verbose=1,
