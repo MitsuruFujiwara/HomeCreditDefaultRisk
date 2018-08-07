@@ -567,11 +567,11 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
         q_high = test_df['TARGET'].quantile(0.9995)
         q_low = test_df['TARGET'].quantile(0.1)
 
-        test_df.loc['TARGET',:] = test_df['TARGET'].apply(lambda x: 1 if x > q_high else x)
-        test_df.loc['TARGET',:] = test_df['TARGET'].apply(lambda x: 0 if x < q_low else x)
+        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > q_high else x)
+        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 0 if x < q_low else x)
 
         # 分離前モデルの予測値を保存
-        test_df.loc['TARGET',:] = sub_preds
+        test_df['TARGET'] = sub_preds
         test_df[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name, index= False)
 
     return feature_importance_df
@@ -676,4 +676,4 @@ if __name__ == "__main__":
         if os.environ['USER'] == 'daiyamita':
             main(debug = True ,use_csv=False)
         else:
-            main(debug = False, use_csv=False)
+            main(debug = False, use_csv=True)
