@@ -48,6 +48,11 @@ def application_train_test(num_rows = None, nan_as_category = False):
     # NaN values for DAYS_EMPLOYED: 365.243 -> nan
     df['DAYS_EMPLOYED'].replace(365243, np.nan, inplace= True)
 
+    # 追加の前処理 https://github.com/neptune-ml/open-solution-home-credit/wiki/LightGBM-with-smarter-features
+    df['NAME_FAMILY_STATUS'].replace('Unknown', np.nan, inplace=True)
+    df['DAYS_LAST_PHONE_CHANGE'].replace(0, np.nan, inplace=True)
+    df['ORGANIZATION_TYPE'].replace('XNA', np.nan, inplace=True)
+
     inc_by_org = df[['AMT_INCOME_TOTAL', 'ORGANIZATION_TYPE']].groupby('ORGANIZATION_TYPE').median()['AMT_INCOME_TOTAL']
 
     df['NEW_CREDIT_TO_ANNUITY_RATIO'] = df['AMT_CREDIT'] / df['AMT_ANNUITY']
@@ -82,6 +87,38 @@ def application_train_test(num_rows = None, nan_as_category = False):
     df['NEW_SOURCES_PROD23'] = df['EXT_SOURCE_2'] * df['EXT_SOURCE_3']
     df['NEW_SOURCES_PROD31'] = df['EXT_SOURCE_3'] * df['EXT_SOURCE_1']
 
+    # 更に追加したやつ　参考 https://github.com/neptune-ml/open-solution-home-credit/wiki/LightGBM-on-selected-features
+    df['NEW_CHILDREN_RATIO'] = df['CNT_CHILDREN'] / df['CNT_FAM_MEMBERS']
+    df['NEW_INCOME_PER_PERSON'] = df['AMT_INCOME_TOTAL'] / df['CNT_FAM_MEMBERS']
+    df['NEW_PAYMENT_RATE'] = df['AMT_ANNUITY'] / df['AMT_CREDIT'] # これ被ってる気がしますが一応入れときます
+    df['NEW_EXT_SOURCE_WEIGHTED'] = df['EXT_SOURCE_1']*2 + df['EXT_SOURCE_2'] * 3 + df['EXT_SOURCE_3'] * 4
+    df['NEW_CNT_NON_CHILD'] = df['CNT_FAM_MEMBERS'] - df['CNT_CHILDREN']
+    df['NEW_CHILD_TO_NON_CHILD_RATIO'] = df['CNT_CHILDREN'] / df['NEW_CNT_NON_CHILD']
+    df['NEW_INCOME_PER_NON_CHILD'] = df['AMT_INCOME_TOTAL'] / df['NEW_CNT_NON_CHILD']
+    df['NEW_CREDIT_PER_PERSON'] = df['AMT_CREDIT'] / df['CNT_FAM_MEMBERS']
+    df['NEW_CREDIT_PER_CHILD'] = df['AMT_CREDIT'] / (1 + df['CNT_CHILDREN'])
+    df['NEW_CREDIT_PER_NON_CHILD'] = df['AMT_CREDIT'] / df['NEW_CNT_NON_CHILD']
+    df['NEW_YOUNG_AGE'] = (df['DAYS_BIRTH'] < -14000).astype(int)
+    df['NEW_SHORT_EMPLOYMENT'] = (df['DAYS_EMPLOYED'] < -2000).astype(int)
+
+    # EXT_SOURCE系大事っぽいので組み合わせ追加します by藤原
+    df['NEW_SOURCES_MIN'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']].min(axis=1)
+    df['NEW_SOURCES_MIN12'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2']].min(axis=1)
+    df['NEW_SOURCES_MIN23'] = df[['EXT_SOURCE_2', 'EXT_SOURCE_3']].min(axis=1)
+    df['NEW_SOURCES_MIN31'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_3']].min(axis=1)
+    df['NEW_SOURCES_MAX'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']].max(axis=1)
+    df['NEW_SOURCES_MAX12'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2']].max(axis=1)
+    df['NEW_SOURCES_MAX23'] = df[['EXT_SOURCE_2', 'EXT_SOURCE_3']].max(axis=1)
+    df['NEW_SOURCES_MAX31'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_3']].max(axis=1)
+    df['NEW_SOURCES_SUM'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']].sum(axis=1)
+    df['NEW_SOURCES_SUM12'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2']].sum(axis=1)
+    df['NEW_SOURCES_SUM23'] = df[['EXT_SOURCE_2', 'EXT_SOURCE_3']].sum(axis=1)
+    df['NEW_SOURCES_SUM31'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_3']].sum(axis=1)
+    df['NEW_SOURCES_MEDIAN'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3']].median(axis=1)
+    df['NEW_SOURCES_MEDIAN12'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2']].median(axis=1)
+    df['NEW_SOURCES_MEDIAN23'] = df[['EXT_SOURCE_2', 'EXT_SOURCE_3']].median(axis=1)
+    df['NEW_SOURCES_MEDIAN31'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_3']].median(axis=1)
+
     # Categorical features with Binary encode (0 or 1; two categories)
     for bin_feature in ['CODE_GENDER', 'FLAG_OWN_CAR', 'FLAG_OWN_REALTY']:
         df[bin_feature], uniques = pd.factorize(df[bin_feature])
@@ -104,6 +141,11 @@ def application_train_test(num_rows = None, nan_as_category = False):
 def bureau_and_balance(num_rows = None, nan_as_category = True):
     bureau = pd.read_csv('bureau.csv', nrows = num_rows)
     bb = pd.read_csv('bureau_balance.csv', nrows = num_rows)
+
+    # 追加の特徴量　https://github.com/neptune-ml/open-solution-home-credit/blob/master/src/feature_extraction.py
+    bureau['CREDIT_ACTIVE_BINARY'] = (bureau['CREDIT_ACTIVE'] != 'Closed').astype(int)
+    bureau['CREDIT_ENDDATE_BINARY'] = (bureau['DAYS_CREDIT_ENDDATE'] > 0).astype(int)
+
     bb, bb_cat = one_hot_encoder(bb, nan_as_category)
     bureau, bureau_cat = one_hot_encoder(bureau, nan_as_category)
 
@@ -117,6 +159,15 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
     bureau.drop(['SK_ID_BUREAU'], axis=1, inplace= True)
     del bb, bb_agg
     gc.collect()
+
+    # 追加の前処理 https://github.com/neptune-ml/open-solution-home-credit/wiki/LightGBM-with-smarter-features
+    bureau['AMT_CREDIT_SUM'].fillna(0, inplace=True)
+    bureau['AMT_CREDIT_SUM_DEBT'].fillna(0, inplace=True)
+    bureau['AMT_CREDIT_SUM_OVERDUE'].fillna(0, inplace=True)
+    bureau['CNT_CREDIT_PROLONG'].fillna(0, inplace=True)
+    bureau['DAYS_CREDIT_ENDDATE'][bureau['DAYS_CREDIT_ENDDATE'] < -40000] = np.nan
+    bureau['DAYS_CREDIT_UPDATE'][bureau['DAYS_CREDIT_UPDATE'] < -40000] = np.nan
+    bureau['DAYS_ENDDATE_FACT'][bureau['DAYS_ENDDATE_FACT'] < -40000] = np.nan
 
     # 追加します　→表記分かりやすいように変更しましたby藤原
     bureau['CREDIT_SUM_TO_DEBT_RATIO'] = bureau['AMT_CREDIT_SUM']/bureau['AMT_CREDIT_SUM_DEBT']
@@ -157,7 +208,9 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
         'DAY_OVERDUE_TO_DAYS_CREDIT_RATIO':['var','skew'],
         'ENDDATE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
         'ENDDATE_FACT_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
-        'UPDATE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew']
+        'UPDATE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
+        'CREDIT_ACTIVE_BINARY':['mean'],
+        'CREDIT_ENDDATE_BINARY':['mean']
     }
     # Bureau and bureau_balance categorical features
     cat_aggregations = {}
@@ -181,6 +234,18 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
 
     # 新たに追加した変数です
     bureau_agg['BURO_CREDIT_ACTIVE_CLOSED_RATIO']=bureau_agg['BURO_CREDIT_ACTIVE_Active_MEAN']/bureau_agg['BURO_CREDIT_ACTIVE_Closed_MEAN']
+
+    # TODO:
+    """
+    features['bureau_average_of_past_loans_per_type'] = \
+        features['bureau_number_of_past_loans'] / features['bureau_number_of_loan_types']
+
+    features['bureau_debt_credit_ratio'] = \
+        features['bureau_total_customer_debt'] / features['bureau_total_customer_credit']
+
+    features['bureau_overdue_debt_ratio'] = \
+        features['bureau_total_customer_overdue'] / features['bureau_total_customer_debt']
+    """
 
     del closed, closed_agg, bureau
     gc.collect()
@@ -269,20 +334,30 @@ def previous_applications(num_rows = None, nan_as_category = True):
 # Preprocess POS_CASH_balance.csv
 def pos_cash(num_rows = None, nan_as_category = True):
     pos = pd.read_csv('POS_CASH_balance.csv', nrows = num_rows)
+
+    # 追加の特徴量 https://github.com/neptune-ml/open-solution-home-credit/blob/master/src/feature_extraction.py
+    pos['IS_CONTRACT_STATUS_COMPLETED'] = (pos['NAME_CONTRACT_STATUS'] == 'Completed').astype(int)
+    pos['POS_CASH_PAID_LATE'] = (pos['SK_DPD'] > 0).astype(int)
+    pos['POS_CASH_PAID_LATE_WITH_TOLERANCE'] = (pos['SK_DPD_DEF'] > 0).astype(int)
+
     pos, cat_cols = one_hot_encoder(pos, nan_as_category= True)
 
     # added_feature
     pos['MONTHS_BALANCE_INSTALLMENT_FUTURE_RATIO'] = pos['MONTHS_BALANCE']*(-1.0)/pos['CNT_INSTALMENT_FUTURE']
     pos['MONTHS_BALANCE_INSTALLMENT_RATIO'] = pos['MONTHS_BALANCE']*(-1.0)/pos['CNT_INSTALMENT']
     pos['INSTALMENT_FUTURE_RATIO'] = pos['CNT_INSTALMENT_FUTURE']*1.0/pos['CNT_INSTALMENT']
+
     # Features
     aggregations = {
         'MONTHS_BALANCE': ['max', 'mean', 'size'],
         'SK_DPD': ['max', 'mean'],
         'SK_DPD_DEF': ['max', 'mean'],
-        'MONTHS_BALANCE_INSTALLMENT_FUTURE_RATIO':['max','min','var','skew'],
-        'MONTHS_BALANCE_INSTALLMENT_RATIO':['max','min','var','skew'],
-        'INSTALMENT_FUTURE_RATIO':['min','var','skew']
+        'MONTHS_BALANCE_INSTALLMENT_FUTURE_RATIO':['mean','max','min','var','skew'],
+        'MONTHS_BALANCE_INSTALLMENT_RATIO':['mean','max','min','var','skew'],
+        'INSTALMENT_FUTURE_RATIO':['mean','min','var','skew'],
+        'IS_CONTRACT_STATUS_COMPLETED':['mean'],
+        'POS_CASH_PAID_LATE':['mean'],
+        'POS_CASH_PAID_LATE_WITH_TOLERANCE':['mean']
     }
     for cat in cat_cols:
         aggregations[cat] = ['mean']
@@ -339,11 +414,18 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
     # General aggregations
     cc.drop(['SK_ID_PREV'], axis= 1, inplace = True)
 
+    # 追加の前処理 https://github.com/neptune-ml/open-solution-home-credit/wiki/LightGBM-with-smarter-features
+    cc['AMT_DRAWINGS_ATM_CURRENT'][cc['AMT_DRAWINGS_ATM_CURRENT'] < 0] = np.nan
+    cc['AMT_DRAWINGS_CURRENT'][cc['AMT_DRAWINGS_CURRENT'] < 0] = np.nan
+
     # 特徴量追加するやでー
     cc['AMT_PAYMENT_CURRENT_TOTAL_RATIO'] = cc['AMT_PAYMENT_CURRENT']*1.0/cc['AMT_PAYMENT_TOTAL_CURRENT']
     cc['CNT_DRAWINGS_ATM_CURRENT_RATIO'] = cc['CNT_DRAWINGS_ATM_CURRENT']*1.0/cc['CNT_DRAWINGS_CURRENT']
     cc['AMT_INST_MIN_REGULARITY_CURRENT_RATIO'] = cc['AMT_INST_MIN_REGULARITY']*1.0/cc['AMT_PAYMENT_CURRENT']
     cc['AMT_INST_MIN_REGULARITY_TOTAL_CURRENT_RATIO'] = cc['AMT_INST_MIN_REGULARITY']*1.0/cc['AMT_PAYMENT_TOTAL_CURRENT']
+
+    # 追加の特徴量 https://github.com/neptune-ml/open-solution-home-credit/blob/master/src/feature_extraction.py
+    cc['BALANCE_TO_LIMIT_RATIO'] = cc['AMT_BALANCE'] / cc['AMT_CREDIT_LIMIT_ACTUAL']
 
     # 処理も追加じゃー
     aggregations = {
@@ -370,7 +452,8 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
         'AMT_PAYMENT_CURRENT_TOTAL_RATIO': ['mean','var'],
         'CNT_DRAWINGS_ATM_CURRENT_RATIO': [ 'max', 'mean', 'sum', 'var'],
         'AMT_INST_MIN_REGULARITY_CURRENT_RATIO': [ 'max', 'mean', 'sum', 'var'],
-        'AMT_INST_MIN_REGULARITY_TOTAL_CURRENT_RATIO': [ 'max', 'mean', 'sum', 'var']
+        'AMT_INST_MIN_REGULARITY_TOTAL_CURRENT_RATIO': [ 'max', 'mean', 'sum', 'var'],
+        'BALANCE_TO_LIMIT_RATIO': [ 'max', 'mean', 'sum', 'var']
     }
     for cat in cat_cols:
         aggregations[cat] = ['mean']
@@ -380,6 +463,14 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
     cc_agg.columns = pd.Index(['CC_' + e[0] + "_" + e[1].upper() for e in cc_agg.columns.tolist()])
     # Count credit card lines
     cc_agg['CC_COUNT'] = cc.groupby('SK_ID_CURR').size()
+    # TODO:
+    """
+    features['credit_card_cash_card_ratio'] = features['credit_card_drawings_atm'] / features[
+        'credit_card_drawings_total']
+
+    features['credit_card_installments_per_loan'] = (
+        features['credit_card_total_installments'] / features['credit_card_number_of_loans'])
+    """
     del cc
     gc.collect()
     return cc_agg
@@ -476,11 +567,11 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
         q_high = test_df['TARGET'].quantile(0.9995)
         q_low = test_df['TARGET'].quantile(0.1)
 
-        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > q_high else x)
-        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 0 if x < q_low else x)
+        test_df.loc['TARGET',:] = test_df['TARGET'].apply(lambda x: 1 if x > q_high else x)
+        test_df.loc['TARGET',:] = test_df['TARGET'].apply(lambda x: 0 if x < q_low else x)
 
         # 分離前モデルの予測値を保存
-        test_df['TARGET'] = sub_preds
+        test_df.loc['TARGET',:] = sub_preds
         test_df[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name, index= False)
 
     return feature_importance_df
@@ -556,7 +647,7 @@ def main(debug = False, use_csv=False):
         del ins
         gc.collect()
     with timer("Process credit card balance"):
-        if False:
+        if use_csv:
             cc = pd.read_csv('CC.csv', index_col='SK_ID_CURR')
         else:
             cc = credit_card_balance(num_rows)
@@ -567,11 +658,13 @@ def main(debug = False, use_csv=False):
         gc.collect()
     with timer("Run LightGBM with kfold"):
         # 不要なカラムを落とす処理を追加
+        """
         dropcolumns=pd.read_csv('feature_importance_not_to_use.csv')
         dropcolumns = dropcolumns['feature'].tolist()
         dropcolumns = [d for d in dropcolumns if d in df.columns.tolist()]
 
         df = df.drop(dropcolumns, axis=1)
+        """
 
         feat_importance = kfold_lightgbm(df, num_folds= 5, stratified=False, debug= debug)
 
@@ -583,4 +676,4 @@ if __name__ == "__main__":
         if os.environ['USER'] == 'daiyamita':
             main(debug = True ,use_csv=False)
         else:
-            main(use_csv=True)
+            main(debug = False, use_csv=False)
