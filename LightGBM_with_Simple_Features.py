@@ -515,7 +515,7 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
         # LightGBM parameters found by Bayesian optimization
         params = {
                 'device' : 'gpu',
-                'gpu_use_dp':True, #これで倍精度演算できるっぽいです
+#                'gpu_use_dp':True, #これで倍精度演算できるっぽいです
                 'task': 'train',
 #                'boosting_type': 'dart',
                 'objective': 'binary',
@@ -533,9 +533,9 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
                 'min_child_weight': 37,
                 'min_data_in_leaf': 629,
                 'verbose': -1,
-                'seed':n_fold,
-                'bagging_seed':n_fold,
-                'drop_seed':n_fold
+                'seed':int(2**n_fold),
+                'bagging_seed':int(2**n_fold),
+                'drop_seed':int(2**n_fold)
                 }
 
         clf = lgb.train(
@@ -666,7 +666,7 @@ def main(debug = False, use_csv=False):
         df = df.drop(dropcolumns, axis=1)
         """
 
-        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified=True, debug= debug)
+        feat_importance = kfold_lightgbm(df, num_folds= 10, stratified=True, debug= debug)
 
         display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance.csv')
 
