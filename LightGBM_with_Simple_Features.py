@@ -666,7 +666,7 @@ def main(debug = False, use_csv=False):
         df = df.drop(dropcolumns, axis=1)
         """
 
-        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified=False, debug= debug)
+        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified=True, debug= debug)
 
         display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance.csv')
 
