@@ -2,7 +2,6 @@
 # From Kaggler : https://www.kaggle.com/jsaguiar
 # Just removed a few min, max features. U can see the CV is not good. Dont believe in LB.
 
-import lightgbm as lgb
 import numpy as np
 import pandas as pd
 import gc
@@ -53,7 +52,7 @@ def kfold_xgboost(df, num_folds, stratified = False, debug= False):
     # final predict用にdmatrix形式のtest dfを作っておきます
     test_df_dmtrx = xgb.DMatrix(test_df[feats], label=train_df['TARGET'])
 
-    # 最初にsplitしないバージョンでモデルを推定します
+    # k-fold
     for n_fold, (train_idx, valid_idx) in enumerate(folds.split(train_df[feats], train_df['TARGET'])):
         train_x, train_y = train_df[feats].iloc[train_idx], train_df['TARGET'].iloc[train_idx]
         valid_x, valid_y = train_df[feats].iloc[valid_idx], train_df['TARGET'].iloc[valid_idx]
@@ -64,45 +63,40 @@ def kfold_xgboost(df, num_folds, stratified = False, debug= False):
         xgb_test = xgb.DMatrix(valid_x,
                                label=valid_y)
 
-        # LightGBM parameters found by Bayesian optimization
+        # XGB parameters from https://www.kaggle.com/kailex/tidy-xgb-all-tables-0-796/code
         params = {
-                'device' : 'gpu',
-                'task': 'train',
-#                'boosting_type': 'dart',
-                'objective': 'binary',
-                'metric': {'auc'},
-                'num_threads': -1,
-                'learning_rate': 0.02,
-                'num_leaves': 39,
-                'colsample_bytree': 0.0587705926,
-                'subsample': 0.5336340435,
-                'max_depth': 7,
-                'reg_alpha': 8.9675927624,
-                'reg_lambda': 9.8953903428,
-                'min_split_gain': 0.911786867,
-                'min_child_weight': 37,
-                'min_data_in_leaf': 629,
-                'verbose': -1,
-                'seed':326,
-                'bagging_seed':326,
-                'drop_seed':326
+                'objective':'gpu:binary:logistic', # GPU parameter
+                'booster': 'gbtree',
+                'eval_metric':'auc',
+                'silent':1,
+                'eta': 0.05,
+                'max_depth': 6,
+                'min_child_weight': 30,
+                'gamma': 0,
+                'subsample': 0.85,
+                'colsample_bytree': 0.7,
+                'colsample_bylevel': 0.632,
+                'alpha':0,
+                'lambda': 0,
+                'tree_method': 'gpu_hist', # GPU parameter
+                'predictor': 'gpu_predictor', # GPU parameter
+                'seed':int(2**n_fold)
                 }
 
         clf = xgb.train(
                         params,
-                        lgb_train,
-                        num_boost_round=10000
-                        evals=[(lgb_train,'train'),(lgb_test,'test')],
-                        early_stopping_rounds= 200,
+                        xgb_train,
+                        num_boost_round=10000,
+                        evals=[(xgb_train,'train'),(xgb_test,'test')],
+                        early_stopping_rounds= 300,
                         verbose_eval=100
                         )
 
-        oof_preds[valid_idx] = clf.predict(valid_x, num_iteration=clf.best_iteration)
-        sub_preds += clf.predict(test_df[feats], num_iteration=clf.best_iteration) / folds.n_splits
+        oof_preds[valid_idx] = clf.predict(xgb_test)
+        sub_preds += clf.predict(test_df_dmtrx) / folds.n_splits
 
-        fold_importance_df = pd.DataFrame()
-        fold_importance_df["feature"] = feats
-        fold_importance_df["importance"] = clf.feature_importance(importance_type='gain', iteration=clf.best_iteration)
+        fold_importance_df = pd.DataFrame.from_dict(clf.get_score(importance_type='gain'), orient='index', columns=['importance'])
+        fold_importance_df["feature"] = fold_importance_df.index.tolist()
         fold_importance_df["fold"] = n_fold + 1
         feature_importance_df = pd.concat([feature_importance_df, fold_importance_df], axis=0)
         print('Fold %2d AUC : %.6f' % (n_fold + 1, roc_auc_score(valid_y, oof_preds[valid_idx])))
@@ -209,20 +203,21 @@ def main(debug = False, use_csv=False):
     with timer("Run LightGBM with kfold"):
         # 不要なカラムを落とさない方がスコア高かったのでとりあえずここはコメントアウトしてます
         # 不要なカラムを落とす処理を追加
+        """
         dropcolumns=pd.read_csv('feature_importance_not_to_use.csv')
         dropcolumns = dropcolumns['feature'].tolist()
         dropcolumns = [d for d in dropcolumns if d in df.columns.tolist()]
 
         df = df.drop(dropcolumns, axis=1)
+        """
 
         # 通常モデルのみ推定
-        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified=True, debug= debug)
+        feat_importance = kfold_xgboost(df, num_folds= 5, stratified=True, debug= debug)
 
-        display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance.csv')
+        display_importances(feat_importance ,'xgb_importances.png', 'feature_importance_xgb.csv')
 
 if __name__ == "__main__":
-    submission_file_name = "submission_add_feature.csv"
-    submission_file_name_split = "submission_add_feature_split.csv"
+    submission_file_name = "submission_add_feature_xgb.csv"
     with timer("Full model run"):
         if os.environ['USER'] == 'daiyamita':
             main(debug = True ,use_csv=False)
