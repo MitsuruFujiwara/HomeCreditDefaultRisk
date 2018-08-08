@@ -533,9 +533,9 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
                 'min_child_weight': 37,
                 'min_data_in_leaf': 629,
                 'verbose': -1,
-                'seed':326,
-                'bagging_seed':326,
-                'drop_seed':326
+                'seed':n_fold,
+                'bagging_seed':n_fold,
+                'drop_seed':n_fold
                 }
 
         clf = lgb.train(
