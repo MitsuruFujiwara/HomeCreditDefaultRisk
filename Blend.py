@@ -9,8 +9,10 @@ WEIGHTED AVERAGE RANK METHODとかいうのを使います。
 
 def main():
     data = {}
-    filepaths=['submission_add_feature.csv','submission_add_feature_xgb.csv']
-    weights = [0.5, 0.5]
+    filepaths=['submission_add_feature.csv',
+               'submission_add_feature_xgb.csv',
+               'submission_add_feature_dnn.csv']
+    weights = [0.45, 0.45, 0.1]
 
     for path in filepaths:
         data[path[:-4]] = pd.read_csv(path)
@@ -23,7 +25,8 @@ def main():
     ranks['Scaled Rank'] = (ranks['Average'] - ranks['Average'].min()) / (ranks['Average'].max() - ranks['Average'].min())
     print(ranks.corr()[:1])
 
-    ranks['Score'] = ranks[['submission_add_feature','submission_add_feature_xgb']].mul(weights).sum(1) / ranks.shape[0]
+    ranks['Score'] = ranks[['submission_add_feature','submission_add_feature_xgb',
+                            'submission_add_feature_dnn']].mul(weights).sum(1) / ranks.shape[0]
     submission_lb = pd.read_csv('submission.csv')
     submission_lb['TARGET'] = ranks['Score']
     submission_lb.to_csv("WEIGHT_AVERAGE_RANK.csv", index=None)
