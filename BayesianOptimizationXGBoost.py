@@ -76,7 +76,7 @@ def xgb_eval(gamma,
             'silent':1,
             'eta': 0.02,
             'tree_method': 'gpu_hist', # GPU parameter
-#            'predictor': 'gpu_predictor', # GPU parameter
+            'predictor': 'gpu_predictor', # GPU parameter
             'seed':326
             }
 
@@ -100,7 +100,7 @@ def xgb_eval(gamma,
                      seed=47,
                      )
 
-    return clf['auc-mean'][-1]
+    return clf['test-auc-mean'][-1]
 
 def main():
     # clf for bayesian optimization
