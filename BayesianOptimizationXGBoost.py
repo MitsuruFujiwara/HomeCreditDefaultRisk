@@ -1,3 +1,4 @@
+import gc
 import pandas as pd
 import xgboost
 
@@ -60,6 +61,8 @@ TEST_DF = DF[DF['TARGET'].isnull()]
 xgb_train = xgboost.DMatrix(TRAIN_DF.drop('TARGET', axis=1),
                         label=TRAIN_DF['TARGET'])
 
+del TRAIN_DF, TEST_DF
+
 def xgb_eval(gamma,
              max_depth,
              min_child_weight,
@@ -99,13 +102,13 @@ def xgb_eval(gamma,
                      verbose_eval=100,
                      seed=47,
                      )
-
-    return clf['test-auc-mean'][-1]
+    gc.collect()
+    return clf['test-auc-mean'].iloc[-1]
 
 def main():
     # clf for bayesian optimization
     clf_bo = BayesianOptimization(xgb_eval, {'gamma':(0, 1),
-                                             'max_depth': (5, 10),
+                                             'max_depth': (5, 8),
                                              'min_child_weight': (0, 45),
                                              'subsample': (0.001, 1),
                                              'colsample_bytree': (0.001, 1),
