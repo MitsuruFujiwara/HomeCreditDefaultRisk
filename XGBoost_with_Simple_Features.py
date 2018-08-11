@@ -69,7 +69,7 @@ def kfold_xgboost(df, num_folds, stratified = False, debug= False):
                 'booster': 'gbtree',
                 'eval_metric':'auc',
                 'silent':1,
-                'eta': 0.02,
+                'eta': 0.05,
                 'max_depth': 6,
                 'min_child_weight': 30,
                 'gamma': 0,
@@ -88,7 +88,7 @@ def kfold_xgboost(df, num_folds, stratified = False, debug= False):
                         xgb_train,
                         num_boost_round=10000,
                         evals=[(xgb_train,'train'),(xgb_test,'test')],
-                        early_stopping_rounds= 200,
+                        early_stopping_rounds= 300,
                         verbose_eval=100
                         )
 
@@ -108,13 +108,12 @@ def kfold_xgboost(df, num_folds, stratified = False, debug= False):
     if not debug:
         # AUDスコアを上げるため提出ファイルの調整を追加→これは最終段階で使いましょう
         # 0or1に調整する水準を決定（とりあえず上位下位0.05%以下のものを調整）
-        """
         q_high = test_df['TARGET'].quantile(0.9995)
         q_low = test_df['TARGET'].quantile(0.0005)
 
         test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > q_high else x)
         test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 0 if x < q_low else x)
-        """
+
         # 分離前モデルの予測値を保存
         test_df['TARGET'] = sub_preds
         test_df[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name, index= False)
@@ -132,7 +131,7 @@ def display_importances(feature_importance_df_, outputpath, csv_outputpath):
 
     plt.figure(figsize=(8, 10))
     sns.barplot(x="importance", y="feature", data=best_features.sort_values(by="importance", ascending=False))
-    plt.title('LightGBM Features (avg over folds)')
+    plt.title('XGBoost Features (avg over folds)')
     plt.tight_layout()
     plt.savefig(outputpath)
 
@@ -201,7 +200,7 @@ def main(debug = False, use_csv=False):
         df = df.join(cc, how='left', on='SK_ID_CURR')
         del cc
         gc.collect()
-    with timer("Run LightGBM with kfold"):
+    with timer("Run XGBoost with kfold"):
         # 不要なカラムを落とさない方がスコア高かったのでとりあえずここはコメントアウトしてます
         # 不要なカラムを落とす処理を追加
         """

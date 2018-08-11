@@ -64,6 +64,7 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
                                free_raw_data=False)
 
         # LightGBM parameters found by Bayesian optimization
+
         params = {
                 'device' : 'gpu',
 #                'gpu_use_dp':True, #これで倍精度演算できるっぽいです
@@ -88,6 +89,36 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
                 'bagging_seed':int(2**n_fold),
                 'drop_seed':int(2**n_fold)
                 }
+
+        """
+        # new params https://github.com/neptune-ml/open-solution-home-credit/wiki/LightGBM-clean-dynamic-features
+        params = {
+                'device' : 'gpu',
+#                'gpu_use_dp':True, #これで倍精度演算できるっぽいです
+                'task': 'train',
+#                'boosting_type': 'dart',
+                'objective': 'binary',
+                'metric': {'auc'},
+                'num_threads': -1,
+                'num_iteration': 10000,
+                'learning_rate': 0.02,
+                'max_depth': -1,
+                'num_leaves': 30,
+                'min_child_samples':70,
+                'subsample': 1.0,
+                'subsample_freq': 1,
+                'colsample_bytree': 0.05,
+                'min_gain_to_split': 0.5,
+                'reg_lambda': 100,
+                'reg_alpha': 0.0,
+                'scale_pos_weight': 1,
+                'is_unbalance': False,
+                'verbose': -1,
+                'seed':int(2**n_fold),
+                'bagging_seed':int(2**n_fold),
+                'drop_seed':int(2**n_fold)
+                }
+        """
 
         clf = lgb.train(
                         params,
@@ -228,4 +259,4 @@ if __name__ == "__main__":
         if os.environ['USER'] == 'daiyamita':
             main(debug = True ,use_csv=False)
         else:
-            main(debug = False, use_csv=True)
+            main(debug = False, use_csv=False)
