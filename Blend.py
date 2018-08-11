@@ -1,33 +1,41 @@
 import pandas as pd
 import numpy as np
 
+from sklearn.linear_model import LogisticRegression
+
 """
 複数モデルのoutputをブレンドして最終的なsubmitファイルを生成するスクリプト。
-WEIGHTED AVERAGE RANK METHODとかいうのを使います。
-参考:https://www.kaggle.com/mfjwr1/magic-of-weighted-average-rank-0-80?scriptVersionId=4675122
+とりあえず最後ロジスティック回帰で推定します。
+参考:https://www.kaggle.com/eliotbarr/stacking-test-sklearn-xgboost-catboost-lightgbm
 """
 
 def main():
-    data = {}
-    filepaths=['submission_add_feature_lgbm.csv', 'submission_add_feature_xgb.csv']
-    weights = [0.5, 0.5]
+    # load datasets
+    print('Loading Datasets...')
+    df = pd.read_csv('application_train.csv')
+    sub = pd.read_csv('submission.csv')
 
-    for path in filepaths:
-        data[path[:-4]] = pd.read_csv(path)
+    # list of file names
+    trainfiles = ['oof_lgbm.csv', 'oof_xgb.csv']
+    testfiles = ['submission_add_feature_lgbm.csv', 'submission_add_feature_xgb.csv']
+    cols = ['lgbm', 'xgb']
 
-    ranks = pd.DataFrame(columns=data.keys())
+    # get predicted value of each models
+    for path_train, path_test, c in zip(trainfiles, testfiles, cols):
+        df[c] = np.log(pd.read_csv(path_train)['OOF_PRED'])
+        sub[c] = np.log(pd.read_csv(path_test)['TARGET'])
 
-    for key in data.keys():
-        ranks[key] = data[key].TARGET.rank(method='min')
-    ranks['Average'] = ranks.mean(axis=1)
-    ranks['Scaled Rank'] = (ranks['Average'] - ranks['Average'].min()) / (ranks['Average'].max() - ranks['Average'].min())
-    print(ranks.corr()[:1])
+    # drop Nan
+    df = df[df[cols[0]].notnull()]
+    # set train & test data
+    trX, trY = df[cols], df['TARGET']
+    valX = sub[cols]
 
-    ranks['Score'] = ranks[['submission_add_feature_lgbm',
-                            'submission_add_feature_xgb'
-                            ]].mul(weights).sum(1) / ranks.shape[0]
-    submission_lb = pd.read_csv('submission.csv')
-    submission_lb['TARGET'] = ranks['Score']
+    # とりあえずノーマルなロジスティック回帰で推定します # TODO: この部分XGBoostでやる場合が多いみたいです。
+    print("Starting LogisticRegression. Train shape: {}, test shape: {}".format(trX.shape, valX.shape))
+    logistic_regression = LogisticRegression(random_state=326)
+    logistic_regression.fit(trX,trY)
+    sub['TARGET'] = logistic_regression.predict_proba(valX)[:,1]
 
     # AUDスコアを上げるため提出ファイルの調整を追加
     # 0or1に調整する水準を決定（とりあえず上位下位0.05%以下のものを調整）
@@ -38,7 +46,9 @@ def main():
     submission_lb['TARGET'] = submission_lb['TARGET'].apply(lambda x: 1 if x > q_high else x)
     submission_lb['TARGET'] = submission_lb['TARGET'].apply(lambda x: 0 if x < q_low else x)
     """
-    submission_lb.to_csv("WEIGHT_AVERAGE_RANK.csv", index=None)
+
+    # 最終結果を保存
+    sub[['SK_ID_CURR', 'TARGET']].to_csv('submission_stacked.csv', index= False)
 
 if __name__ == '__main__':
     main()

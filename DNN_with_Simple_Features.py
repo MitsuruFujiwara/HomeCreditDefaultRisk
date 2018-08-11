@@ -210,39 +210,13 @@ def kfold_DNN(df, num_folds, stratified = False, debug= False, use_saved_params=
         gc.collect()
 
     if not debug:
-        # AUDスコアを上げるため提出ファイルの調整を追加→これは最終段階で使いましょう
-        # 0or1に調整する水準を決定（とりあえず上位下位0.05%以下のものを調整）
-#        q_high = test_df['TARGET'].quantile(0.9995)
-#        q_low = test_df['TARGET'].quantile(0.0005)
-
-#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > q_high else x)
-#        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 0 if x < q_low else x)
-
-        # 分離前モデルの予測値を保存
+        # 提出データの予測値を保存
         test_df['TARGET'] = sub_preds
         test_df[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name, index= False)
 
-    """
-    # save model
-    model.save('DNN_v3.h5')
-
-    # summarize history for accuracy
-    plt.plot(history.history['acc'])
-    plt.plot(history.history['val_acc'])
-    plt.title('model accuracy')
-    plt.ylabel('accuracy')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
-    # summarize history for loss
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
-    plt.title('model loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
-    """
+        # out of foldの予測値を保存
+        train_df['OOF_PRED'] = oof_preds
+        train_df[['SK_ID_CURR', 'TARGET', 'OOF_PRED']].to_csv(oof_file_name, index= False)
 
 def main(debug = False, use_csv=False, use_saved_params=False):
     num_rows = 10000 if debug else None
@@ -251,8 +225,10 @@ def main(debug = False, use_csv=False, use_saved_params=False):
     df = loadData(num_rows, use_csv)
 
     # model training
-    kfold_DNN(df, num_folds=5,use_saved_params=use_saved_params)
+    kfold_DNN(df, num_folds=5, stratified=True, use_saved_params=use_saved_params)
 
 if __name__ == '__main__':
     submission_file_name="submission_add_feature_dnn.csv"
-    main(use_csv=True, use_saved_params=True)
+    oof_file_name = "oof_dnn.csv"
+
+    main(use_csv=True, use_saved_params=False)

@@ -63,34 +63,6 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
                                label=valid_y,
                                free_raw_data=False)
 
-        # LightGBM parameters found by Bayesian optimization
-
-        params = {
-                'device' : 'gpu',
-#                'gpu_use_dp':True, #これで倍精度演算できるっぽいです
-                'task': 'train',
-#                'boosting_type': 'dart',
-                'objective': 'binary',
-                'metric': {'auc'},
-                'num_threads': -1,
-                'learning_rate': 0.02,
-                'num_iteration': 10000,
-                'num_leaves': 39,
-                'colsample_bytree': 0.0587705926,
-                'subsample': 0.5336340435,
-                'max_depth': 7,
-                'reg_alpha': 8.9675927624,
-                'reg_lambda': 9.8953903428,
-                'min_split_gain': 0.911786867,
-                'min_child_weight': 37,
-                'min_data_in_leaf': 629,
-                'verbose': -1,
-                'seed':int(2**n_fold),
-                'bagging_seed':int(2**n_fold),
-                'drop_seed':int(2**n_fold)
-                }
-
-        """
         # new params https://github.com/neptune-ml/open-solution-home-credit/wiki/LightGBM-clean-dynamic-features
         params = {
                 'device' : 'gpu',
@@ -118,7 +90,6 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
                 'bagging_seed':int(2**n_fold),
                 'drop_seed':int(2**n_fold)
                 }
-        """
 
         clf = lgb.train(
                         params,
@@ -144,18 +115,13 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
     print('Full AUC score %.6f' % roc_auc_score(train_df['TARGET'], oof_preds))
 
     if not debug:
-        # AUDスコアを上げるため提出ファイルの調整を追加→これは最終段階で使いましょう
-        # 0or1に調整する水準を決定（とりあえず上位下位0.05%以下のものを調整）→下位は10%に変更
-        """
-        q_high = test_df['TARGET'].quantile(0.9995)
-        q_low = test_df['TARGET'].quantile(0.1)
-
-        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > q_high else x)
-        test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 0 if x < q_low else x)
-        """
-        # 分離前モデルの予測値を保存
+        # 提出データの予測値を保存
         test_df['TARGET'] = sub_preds
         test_df[['SK_ID_CURR', 'TARGET']].to_csv(submission_file_name, index= False)
+
+        # out of foldの予測値を保存
+        train_df['OOF_PRED'] = oof_preds
+        train_df[['SK_ID_CURR', 'OOF_PRED']].to_csv(oof_file_name, index= False)
 
     return feature_importance_df
 
@@ -255,8 +221,9 @@ def main(debug = False, use_csv=False):
 
 if __name__ == "__main__":
     submission_file_name = "submission_add_feature_lgbm.csv"
+    oof_file_name = "oof_lgbm.csv"
     with timer("Full model run"):
         if os.environ['USER'] == 'daiyamita':
             main(debug = True ,use_csv=False)
         else:
-            main(debug = False, use_csv=False)
+            main(debug = False, use_csv=True)
