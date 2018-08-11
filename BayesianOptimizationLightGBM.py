@@ -27,6 +27,14 @@ else:
     INS = installments_payments(NUM_ROWS)
     CC = credit_card_balance(NUM_ROWS)
 
+    # save data
+    DF.to_csv('APP.csv')
+    BUREAU.to_csv('BUREAU.csv')
+    PREV.to_csv('PREV.csv')
+    POS.to_csv('POS.csv')
+    INS.to_csv('INS.csv')
+    CC.to_csv('CC.csv')
+
 # concat datasets
 DF = DF.join(BUREAU, how='left', on='SK_ID_CURR')
 DF = DF.join(PREV, how='left', on='SK_ID_CURR')
@@ -35,19 +43,13 @@ DF = DF.join(INS, how='left', on='SK_ID_CURR')
 DF = DF.join(CC, how='left', on='SK_ID_CURR')
 
 # 不要なカラムを落とす処理を追加
+"""
 DROPCOLUMNS=pd.read_csv('feature_importance_not_to_use.csv')
 DROPCOLUMNS = DROPCOLUMNS['feature'].tolist()
 DROPCOLUMNS = [d for d in DROPCOLUMNS if d in df.columns.tolist()]
 
 DF = df.drop(DROPCOLUMNS, axis=1)
-
-# save data
-DF.to_csv('APP.csv')
-BUREAU.to_csv('BUREAU.csv')
-PREV.to_csv('PREV.csv')
-POS.to_csv('POS.csv')
-INS.to_csv('INS.csv')
-CC.to_csv('CC.csv')
+"""
 
 del BUREAU, PREV, POS, INS, CC
 
@@ -59,6 +61,8 @@ lgbm_train = lightgbm.Dataset(TRAIN_DF.drop('TARGET', axis=1),
                               TRAIN_DF['TARGET'],
                               free_raw_data=False
                               )
+
+del TRAIN_DF, TEST_DF
 
 def lgbm_eval(num_leaves,
               colsample_bytree,
