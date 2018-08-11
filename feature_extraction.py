@@ -147,9 +147,15 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
     bureau['AMT_CREDIT_SUM_DEBT'].fillna(0, inplace=True)
     bureau['AMT_CREDIT_SUM_OVERDUE'].fillna(0, inplace=True)
     bureau['CNT_CREDIT_PROLONG'].fillna(0, inplace=True)
-    bureau['DAYS_CREDIT_ENDDATE'][bureau['DAYS_CREDIT_ENDDATE'] < -40000] = np.nan
-    bureau['DAYS_CREDIT_UPDATE'][bureau['DAYS_CREDIT_UPDATE'] < -40000] = np.nan
-    bureau['DAYS_ENDDATE_FACT'][bureau['DAYS_ENDDATE_FACT'] < -40000] = np.nan
+    #bureau['DAYS_CREDIT_ENDDATE'][bureau['DAYS_CREDIT_ENDDATE'] < -40000] = np.nan
+    ix = bureau[bureau['DAYS_CREDIT_ENDDATE'] < -40000].index
+    bureau.loc[ix,'DAYS_CREDIT_ENDDATE'] = np.nan
+    #bureau['DAYS_CREDIT_UPDATE'][bureau['DAYS_CREDIT_UPDATE'] < -40000] = np.nan
+    ix = bureau[bureau['DAYS_CREDIT_UPDATE'] < -40000].index
+    bureau.loc[ix,'DAYS_CREDIT_UPDATE'] = np.nan
+    #bureau['DAYS_ENDDATE_FACT'][bureau['DAYS_ENDDATE_FACT'] < -40000] = np.nan
+    ix = bureau[bureau['DAYS_ENDDATE_FACT'] < -40000].index
+    bureau.loc[ix,'DAYS_ENDDATE_FACT'] = np.nan
 
     # 追加します　→表記分かりやすいように変更しましたby藤原
     bureau['CREDIT_SUM_TO_DEBT_RATIO'] = bureau['AMT_CREDIT_SUM']/bureau['AMT_CREDIT_SUM_DEBT']
@@ -397,14 +403,28 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
     cc.drop(['SK_ID_PREV'], axis= 1, inplace = True)
 
     # 追加の前処理 https://github.com/neptune-ml/open-solution-home-credit/wiki/LightGBM-with-smarter-features
-    cc['AMT_DRAWINGS_ATM_CURRENT'][cc['AMT_DRAWINGS_ATM_CURRENT'] < 0] = np.nan
-    cc['AMT_DRAWINGS_CURRENT'][cc['AMT_DRAWINGS_CURRENT'] < 0] = np.nan
+    #cc['AMT_DRAWINGS_ATM_CURRENT'][cc['AMT_DRAWINGS_ATM_CURRENT'] < 0] = np.nan
+    ix = cc[cc['AMT_DRAWINGS_ATM_CURRENT'] < 0].index
+    cc.loc[ix,'AMT_DRAWINGS_ATM_CURRENT'] =np.nan
+    #cc['AMT_DRAWINGS_CURRENT'][cc['AMT_DRAWINGS_CURRENT'] < 0] = np.nan
+    ix = cc[cc['AMT_DRAWINGS_CURRENT'] < 0].index
+    cc.loc[ix,'AMT_DRAWINGS_CURRENT'] =np.nan
 
     # 特徴量追加するやでー
     cc['AMT_PAYMENT_CURRENT_TOTAL_RATIO'] = cc['AMT_PAYMENT_CURRENT']*1.0/cc['AMT_PAYMENT_TOTAL_CURRENT']
     cc['CNT_DRAWINGS_ATM_CURRENT_RATIO'] = cc['CNT_DRAWINGS_ATM_CURRENT']*1.0/cc['CNT_DRAWINGS_CURRENT']
     cc['AMT_INST_MIN_REGULARITY_CURRENT_RATIO'] = cc['AMT_INST_MIN_REGULARITY']*1.0/cc['AMT_PAYMENT_CURRENT']
     cc['AMT_INST_MIN_REGULARITY_TOTAL_CURRENT_RATIO'] = cc['AMT_INST_MIN_REGULARITY']*1.0/cc['AMT_PAYMENT_TOTAL_CURRENT']
+    cc['AMT_RECEIVABLE_PRINCIPAL_AMT_RECIVABLE_RATIO'] = cc['AMT_RECEIVABLE_PRINCIPAL']*1.0/cc['AMT_RECIVABLE']
+    cc['AMT_RECIVABLE_AMT_TOTAL_RECEIVABLE_RATIO'] = cc['AMT_RECIVABLE']*1.0/cc['AMT_TOTAL_RECEIVABLE']
+
+    cc['AMT_TOTAL_RECEIVABLE_CNT_INSTALMENT_MATURE_CUM'] = cc['AMT_TOTAL_RECEIVABLE']*1.0/cc['CNT_INSTALMENT_MATURE_CUM']
+    cc['AMT_RECIVABLE_CNT_INSTALMENT_MATURE_CUM'] = cc['AMT_RECIVABLE']*1.0/cc['CNT_INSTALMENT_MATURE_CUM']
+    cc['AMT_PAYMENT_TOTAL_CURRENT_CNT_INSTALMENT_MATURE_CUM'] = cc['AMT_PAYMENT_TOTAL_CURRENT']*1.0/cc['CNT_INSTALMENT_MATURE_CUM']
+    cc['AMT_PAYMENT_CURRENT_CNT_INSTALMENT_MATURE_CUM'] = cc['AMT_PAYMENT_CURRENT']*1.0/cc['CNT_INSTALMENT_MATURE_CUM']
+    cc['AMT_DRAWINGS_CURRENT_AMT_CNT_INSTALMENT_MATURE_CUM'] = cc['AMT_DRAWINGS_CURRENT']*1.0/cc['CNT_INSTALMENT_MATURE_CUM']
+    cc['AMT_CREDIT_LIMIT_ACTUAL_CNT_INSTALMENT_MATURE_CUM'] = cc['AMT_CREDIT_LIMIT_ACTUAL']*1.0/cc['CNT_INSTALMENT_MATURE_CUM']
+    cc['AMT_BALANCE_CNT_INSTALMENT_MATURE_CUM'] = cc['AMT_BALANCE']*1.0/cc['CNT_INSTALMENT_MATURE_CUM']
 
     # 追加の特徴量 https://github.com/neptune-ml/open-solution-home-credit/blob/master/src/feature_extraction.py
     cc['BALANCE_TO_LIMIT_RATIO'] = cc['AMT_BALANCE'] / cc['AMT_CREDIT_LIMIT_ACTUAL']
@@ -435,7 +455,16 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
         'CNT_DRAWINGS_ATM_CURRENT_RATIO': [ 'max', 'mean', 'sum', 'var'],
         'AMT_INST_MIN_REGULARITY_CURRENT_RATIO': [ 'max', 'mean', 'sum', 'var'],
         'AMT_INST_MIN_REGULARITY_TOTAL_CURRENT_RATIO': [ 'max', 'mean', 'sum', 'var'],
-        'BALANCE_TO_LIMIT_RATIO': [ 'max', 'mean', 'sum', 'var']
+        'BALANCE_TO_LIMIT_RATIO': [ 'max', 'mean', 'sum', 'var'],
+        'AMT_RECEIVABLE_PRINCIPAL_AMT_RECIVABLE_RATIO': [ 'max', 'mean', 'sum', 'var'],
+        'AMT_RECIVABLE_AMT_TOTAL_RECEIVABLE_RATIO': [ 'max', 'mean', 'sum', 'var'],
+        'AMT_TOTAL_RECEIVABLE_CNT_INSTALMENT_MATURE_CUM': [ 'max', 'mean', 'sum', 'var'],
+        'AMT_RECIVABLE_CNT_INSTALMENT_MATURE_CUM': [ 'max', 'mean', 'sum', 'var'],
+        'AMT_PAYMENT_TOTAL_CURRENT_CNT_INSTALMENT_MATURE_CUM': [ 'max', 'mean', 'sum', 'var'],
+        'AMT_PAYMENT_CURRENT_CNT_INSTALMENT_MATURE_CUM': [ 'max', 'mean', 'sum', 'var'],
+        'AMT_DRAWINGS_CURRENT_AMT_CNT_INSTALMENT_MATURE_CUM': [ 'max', 'mean', 'sum', 'var'],
+        'AMT_CREDIT_LIMIT_ACTUAL_CNT_INSTALMENT_MATURE_CUM': [ 'max', 'mean', 'sum', 'var'],
+        'AMT_BALANCE_CNT_INSTALMENT_MATURE_CUM': [ 'max', 'mean', 'sum', 'var']
     }
     for cat in cat_cols:
         aggregations[cat] = ['mean']
