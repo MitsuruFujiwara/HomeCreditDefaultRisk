@@ -14,7 +14,7 @@ from keras.regularizers import l2
 from keras.optimizers import SGD
 
 from roc_callback import roc_callback
-from LightGBM_with_Simple_Features import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test
+from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test
 
 """
 LightGBMと同じ特徴量でDNNの予測値を出すためのスクリプト。
@@ -82,6 +82,9 @@ def _model(input_dim):
     model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.0001)))
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
+    model.add(Dense(output_dim=1000, input_dim=1000, W_regularizer=l2(0.0001)))
+    model.add(Activation('relu'))
+    model.add(Dropout(0.5))
     model.add(Dense(output_dim=1, input_dim=1000, W_regularizer=l2(0.0001)))
     model.add(Activation('sigmoid'))
     return model
@@ -131,7 +134,7 @@ def getInitialWeights(trX, num_epoc, use_saved_params=False):
     del base_model
     return w
 
-def kfold_DNN(df, num_folds, stratified = False, debug= False):
+def kfold_DNN(df, num_folds, stratified = False, debug= False, use_saved_params=False):
     """
     DNN用の前処理など
     """
@@ -150,7 +153,7 @@ def kfold_DNN(df, num_folds, stratified = False, debug= False):
 
     # 事前学習でモデルの初期値を求める #ここではTESTデータも含めて全てのデータを使います。
     trX = [np.array(df_ms[feats])]
-    weights = getInitialWeights(trX, num_epoc=5, use_saved_params=False)
+    weights = getInitialWeights(trX, num_epoc=5, use_saved_params=use_saved_params)
 
     """
     k-foldによるDNNモデルの推定
@@ -241,15 +244,15 @@ def kfold_DNN(df, num_folds, stratified = False, debug= False):
     plt.show()
     """
 
-def main(debug = False, use_csv=False):
+def main(debug = False, use_csv=False, use_saved_params=False):
     num_rows = 10000 if debug else None
 
     # set data
     df = loadData(num_rows, use_csv)
 
     # model training
-    kfold_DNN(df, num_folds=5)
+    kfold_DNN(df, num_folds=5,use_saved_params=use_saved_params)
 
 if __name__ == '__main__':
     submission_file_name="submission_add_feature_dnn.csv"
-    main(use_csv=True)
+    main(use_csv=True, use_saved_params=True)

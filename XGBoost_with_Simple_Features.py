@@ -16,7 +16,7 @@ import seaborn as sns
 import warnings
 import os
 
-from LightGBM_with_Simple_Features import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test
+from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -88,7 +88,7 @@ def kfold_xgboost(df, num_folds, stratified = False, debug= False):
                         xgb_train,
                         num_boost_round=10000,
                         evals=[(xgb_train,'train'),(xgb_test,'test')],
-                        early_stopping_rounds= 300,
+                        early_stopping_rounds= 200,
                         verbose_eval=100
                         )
 
