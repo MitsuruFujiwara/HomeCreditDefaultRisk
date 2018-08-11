@@ -456,3 +456,37 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
     del cc
     gc.collect()
     return cc_agg
+
+if __name__ == '__main__':
+    # test
+    num_rows = 10000
+
+    # application
+    df = application_train_test(num_rows)
+
+    # bureau
+    bureau = bureau_and_balance(num_rows)
+    df = df.join(bureau, how='left', on='SK_ID_CURR')
+    del bureau
+
+    # prev
+    prev = previous_applications(num_rows)
+    df = df.join(prev, how='left', on='SK_ID_CURR')
+    del prev
+
+    # pos
+    pos = pos_cash(num_rows)
+    df = df.join(pos, how='left', on='SK_ID_CURR')
+    del pos
+
+    # ins
+    ins = installments_payments(num_rows)
+    df = df.join(ins, how='left', on='SK_ID_CURR')
+    del ins
+
+    # cc
+    cc = credit_card_balance(num_rows)
+    df = df.join(cc, how='left', on='SK_ID_CURR')
+    del cc
+
+    print(df)
