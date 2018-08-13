@@ -16,7 +16,7 @@ import seaborn as sns
 def main():
     data = {}
     filepaths=['submission_add_feature_lgbm.csv','submission_add_feature_xgb.csv']
-    weights = [0.5, 0.5]
+    weights = [0.6, 0.4]
 
     for path in filepaths:
         data[path[:-4]] = pd.read_csv(path)
