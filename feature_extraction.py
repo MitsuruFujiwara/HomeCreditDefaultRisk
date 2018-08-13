@@ -101,6 +101,9 @@ def application_train_test(num_rows = None, nan_as_category = False):
     df['NEW_SOURCES_MEDIAN23'] = df[['EXT_SOURCE_2', 'EXT_SOURCE_3']].median(axis=1)
     df['NEW_SOURCES_MEDIAN31'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_3']].median(axis=1)
 
+    # さいつよっぽいやつの組み合わせ
+    df['NEW_CREDIT_ANNUITY_SOURCES_RATIO'] = df['NEW_CREDIT_TO_ANNUITY_RATIO'] / df['NEW_EXT_SOURCES_MEAN']
+
     # Categorical features with Binary encode (0 or 1; two categories)
     for bin_feature in ['CODE_GENDER', 'FLAG_OWN_CAR', 'FLAG_OWN_REALTY']:
         df[bin_feature], uniques = pd.factorize(df[bin_feature])

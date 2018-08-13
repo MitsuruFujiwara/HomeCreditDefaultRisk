@@ -14,6 +14,7 @@ import seaborn as sns
 参考:https://www.kaggle.com/eliotbarr/stacking-test-sklearn-xgboost-catboost-lightgbm
 """
 
+"""
 # 最終スコア提出用にこれコピペして使います。
 def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
 
@@ -51,22 +52,25 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
                                free_raw_data=False)
 
         # TODO: ここのパラメータチューニング
+        # とりあえず参考: https://www.kaggle.com/mingpeiyu/stacking-test-sklearn-xgboost-catboost-lightgbm
         params = {
                 'device' : 'gpu',
-#                'gpu_use_dp':True, #これで倍精度演算できるっぽいです
+                'gpu_use_dp':True, #これで倍精度演算できるっぽいです
                 'task': 'train',
 #                'boosting_type': 'dart',
                 'objective': 'binary',
                 'metric': {'auc'},
                 'num_threads': -1,
 #                'num_iteration': 10000,
-#                'learning_rate': 0.02,
-#                'max_depth': -1,
+                'learning_rate': 0.01,
+                'max_depth': 1,
 #                'num_leaves': 30,
 #                'min_child_samples':70,
-#                'subsample': 1.0,
+                'subsample': 0.6,
 #                'subsample_freq': 1,
-#                'colsample_bytree': 0.05,
+                'colsample_bytree': 0.8,
+                'num_parallel_tree': 1,
+                'min_child_weight': 1,
 #                'min_gain_to_split': 0.5,
 #                'reg_lambda': 100,
 #                'reg_alpha': 0.0,
@@ -138,8 +142,8 @@ def getData(num_rows=None):
 
     # get predicted value of each models
     for path_train, path_test, c in zip(trainfiles, testfiles, cols):
-        df[c] = np.log(pd.read_csv(path_train)['OOF_PRED'])
-        sub[c] = np.log(pd.read_csv(path_test)['TARGET'])
+        df[c] = pd.read_csv(path_train)['OOF_PRED']
+        sub[c] = pd.read_csv(path_test)['TARGET']
 
     df = df[cols+['TARGET', 'SK_ID_CURR']].dropna()
     sub = sub[cols+['TARGET', 'SK_ID_CURR']]
@@ -160,4 +164,29 @@ def main(debug = False):
 
 if __name__ == '__main__':
     submission_file_name = 'submission_stacked.csv'
+    main()
+"""
+
+def main():
+    data = {}
+    filepaths=['submission_add_feature.csv','submission_add_feature_xgb.csv']
+    weights = [0.5, 0.5]
+
+    for path in filepaths:
+        data[path[:-4]] = pd.read_csv(path)
+
+    ranks = pd.DataFrame(columns=data.keys())
+
+    for key in data.keys():
+        ranks[key] = data[key].TARGET.rank(method='min')
+    ranks['Average'] = ranks.mean(axis=1)
+    ranks['Scaled Rank'] = (ranks['Average'] - ranks['Average'].min()) / (ranks['Average'].max() - ranks['Average'].min())
+    print(ranks.corr()[:1])
+
+    ranks['Score'] = ranks[['submission_add_feature','submission_add_feature_xgb']].mul(weights).sum(1) / ranks.shape[0]
+    submission_lb = pd.read_csv('submission.csv')
+    submission_lb['TARGET'] = ranks['Score']
+    submission_lb.to_csv("WEIGHT_AVERAGE_RANK.csv", index=None)
+
+if __name__ == '__main__':
     main()

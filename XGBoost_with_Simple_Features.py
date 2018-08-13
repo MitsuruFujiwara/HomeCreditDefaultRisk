@@ -69,15 +69,15 @@ def kfold_xgboost(df, num_folds, stratified = False, debug= False):
                 'booster': 'gbtree',
                 'eval_metric':'auc',
                 'silent':1,
-                'eta': 0.05,
-                'max_depth': 6,
-                'min_child_weight': 30,
-                'gamma': 0,
-                'subsample': 0.85,
-                'colsample_bytree': 0.7,
-                'colsample_bylevel': 0.632,
-                'alpha':0,
-                'lambda': 0,
+                'eta': 0.02,
+                'max_depth': 5,
+                'min_child_weight': 35.5631340537,
+                'gamma': 0.6659946565,
+                'subsample': 0.9235943173,
+                'colsample_bytree': 0.0519572161,
+                'colsample_bylevel': 0.9073497664,
+                'alpha':9.8481138755,
+                'lambda': 3.2862627718,
                 'tree_method': 'gpu_hist', # GPU parameter
                 'predictor': 'gpu_predictor', # GPU parameter
                 'seed':int(2**n_fold)
@@ -88,7 +88,7 @@ def kfold_xgboost(df, num_folds, stratified = False, debug= False):
                         xgb_train,
                         num_boost_round=10000,
                         evals=[(xgb_train,'train'),(xgb_test,'test')],
-                        early_stopping_rounds= 300,
+                        early_stopping_rounds= 200,
                         verbose_eval=100
                         )
 
@@ -209,7 +209,7 @@ def main(debug = False, use_csv=False):
         """
 
         # 通常モデルのみ推定
-        feat_importance = kfold_xgboost(df, num_folds= 5, stratified=True, debug= debug)
+        feat_importance = kfold_xgboost(df, num_folds= 10, stratified=True, debug= debug)
 
         display_importances(feat_importance ,'xgb_importances.png', 'feature_importance_xgb.csv')
 
