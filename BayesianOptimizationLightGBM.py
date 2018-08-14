@@ -1,3 +1,4 @@
+import gc
 import pandas as pd
 import lightgbm
 
@@ -9,7 +10,7 @@ from LightGBM_with_Simple_Features import bureau_and_balance, previous_applicati
 # https://www.kaggle.com/tilii7/olivier-lightgbm-parameters-by-bayesian-opt/code
 
 NUM_ROWS=None
-USE_CSV=False
+USE_CSV=True
 
 if USE_CSV:
     DF = application_train_test(NUM_ROWS)
@@ -77,11 +78,12 @@ def lgbm_eval(num_leaves,
 
     params = dict()
     params["learning_rate"] = 0.02
-    params["silent"] = True
-    params["nthread"] = 16
+#    params["silent"] = True
+    params['device'] = 'gpu'
+#    params["nthread"] = 16
     params["application"] = "binary"
     params['seed']=326,
-    params['bagging_seed']=326,
+    params['bagging_seed']=326
 
     params["num_leaves"] = int(num_leaves)
     params['colsample_bytree'] = max(min(colsample_bytree, 1), 0)
@@ -104,7 +106,7 @@ def lgbm_eval(num_leaves,
                       verbose_eval=100,
                       seed=47,
                      )
-
+    gc.collect()
     return clf['auc-mean'][-1]
 
 def main():
@@ -113,7 +115,7 @@ def main():
     clf_bo = BayesianOptimization(lgbm_eval, {'num_leaves': (32, 512),
                                               'colsample_bytree': (0.001, 1),
                                               'subsample': (0.001, 1),
-                                              'max_depth': (5, 10),
+                                              'max_depth': (3, 8),
                                               'reg_alpha': (0, 10),
                                               'reg_lambda': (0, 10),
                                               'min_split_gain': (0, 1),
@@ -125,7 +127,7 @@ def main():
 
     res = pd.DataFrame(clf_bo.res['max']['max_params'], index=['max_params'])
 
-    res.to_csv('max_params_v2.csv')
+    res.to_csv('max_params_lgbm.csv')
 
 if __name__ == '__main__':
     main()
