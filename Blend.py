@@ -32,6 +32,15 @@ def main():
     ranks['Score'] = ranks[['submission_add_feature_lgbm','submission_add_feature_xgb']].mul(weights).sum(1) / ranks.shape[0]
     submission_lb = pd.read_csv('submission.csv')
     submission_lb['TARGET'] = ranks['Score']
+
+    # AUDスコアを上げるため提出ファイルの調整を追加→これは最終段階で使いましょう
+    # 0or1に調整する水準を決定（とりあえず上位下位0.05%以下のものを調整）
+#    q_high = test_df['TARGET'].quantile(0.9995)
+    q_low = submission_lb['TARGET'].quantile(0.01)
+
+#    test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > q_high else x)
+    submission_lb['TARGET'] = submission_lb['TARGET'].apply(lambda x: 0 if x < q_low else x)
+
     submission_lb.to_csv("WEIGHT_AVERAGE_RANK.csv", index=None)
 
 if __name__ == '__main__':
