@@ -112,7 +112,7 @@ def lgbm_eval(num_leaves,
 def main():
 
     # clf for bayesian optimization
-    clf_bo = BayesianOptimization(lgbm_eval, {'num_leaves': (32, 512),
+    clf_bo = BayesianOptimization(lgbm_eval, {'num_leaves': (32, 128),
                                               'colsample_bytree': (0.001, 1),
                                               'subsample': (0.001, 1),
                                               'max_depth': (3, 8),
