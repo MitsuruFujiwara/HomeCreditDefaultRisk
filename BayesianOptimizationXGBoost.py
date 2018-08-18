@@ -43,25 +43,18 @@ DF = DF.join(POS, how='left', on='SK_ID_CURR')
 DF = DF.join(INS, how='left', on='SK_ID_CURR')
 DF = DF.join(CC, how='left', on='SK_ID_CURR')
 
-"""
-# 不要なカラムを落とす処理を追加
-DROPCOLUMNS=pd.read_csv('feature_importance_not_to_use.csv')
-DROPCOLUMNS = DROPCOLUMNS['feature'].tolist()
-DROPCOLUMNS = [d for d in DROPCOLUMNS if d in df.columns.tolist()]
-
-DF = df.drop(DROPCOLUMNS, axis=1)
-"""
-
 del BUREAU, PREV, POS, INS, CC
 
 # split test & train
 TRAIN_DF = DF[DF['TARGET'].notnull()]
-TEST_DF = DF[DF['TARGET'].isnull()]
+FEATS = [f for f in TRAIN_DF.columns if f not in ['TARGET','SK_ID_CURR','SK_ID_BUREAU','SK_ID_PREV','index']]
 
-xgb_train = xgboost.DMatrix(TRAIN_DF.drop('TARGET', axis=1),
-                        label=TRAIN_DF['TARGET'])
+lgbm_train = lightgbm.Dataset(TRAIN_DF[FEATS],
+                              TRAIN_DF['TARGET'],
+                              free_raw_data=False
+                              )
 
-del TRAIN_DF, TEST_DF
+del TRAIN_DF
 
 def xgb_eval(gamma,
              max_depth,
