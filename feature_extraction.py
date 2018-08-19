@@ -284,6 +284,8 @@ def previous_applications(num_rows = None, nan_as_category = True):
         'AMT_GOODS_PRICE': [ 'max', 'mean'],
         'HOUR_APPR_PROCESS_START': [ 'max', 'mean'],
         'RATE_DOWN_PAYMENT': [ 'max', 'mean'],
+        'RATE_INTEREST_PRIMARY':['max','mean'],
+        'RATE_INTEREST_PRIVILEGED':['max','mean'],
         'DAYS_DECISION': [ 'max', 'mean'],
         'CNT_PAYMENT': ['mean','sum','var','max','min','skew'],
         'CREDIT_TO_ANNUITY_RATIO':['mean','var','max','min','skew'],
@@ -503,6 +505,12 @@ def getAdditionalFeatures(data):
     # 作ってみた その2
     data['ADD_NORMALIZED_SCORE_1'] = data['NEW_SOURCES_MEDIAN'] + data['PREV_RATE_DOWN_PAYMENT_MEAN']
     data['MINUS_NORMALIZED_SCORE_1'] = data['NEW_SOURCES_MEDIAN'] - data['PREV_RATE_DOWN_PAYMENT_MEAN']
+
+    data['ADD_NORMALIZED_SCORE_2'] = data['NEW_SOURCES_MEDIAN'] + data['PREV_RATE_INTEREST_PRIMARY_MEAN']
+    data['MINUS_NORMALIZED_SCORE_2'] = data['NEW_SOURCES_MEDIAN'] - data['PREV_RATE_INTEREST_PRIMARY_MEAN']
+
+    data['ADD_NORMALIZED_SCORE_3'] = data['NEW_SOURCES_MEDIAN'] + data['PREV_RATE_INTEREST_PRIVILEGED_MEAN']
+    data['MINUS_NORMALIZED_SCORE_3'] = data['NEW_SOURCES_MEDIAN'] - data['PREV_RATE_INTEREST_PRIVILEGED_MEAN']
 
     return data
 
