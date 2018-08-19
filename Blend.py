@@ -10,38 +10,46 @@ import seaborn as sns
 
 """
 複数モデルのoutputをブレンドして最終的なsubmitファイルを生成するスクリプト。
-参考:https://www.kaggle.com/eliotbarr/stacking-test-sklearn-xgboost-catboost-lightgbm
 """
 
 def main():
-    data = {}
-    filepaths=['submission_add_feature_lgbm.csv','submission_add_feature_xgb.csv']
-    weights = [0.5, 0.5]
+    # load submission files
+    sub = pd.read_csv('sample_submission.csv')
+    sub_lgbm = pd.read_csv('submission_add_feature_lgbm.csv')
+    sub_xgb = pd.read_csv('submission_add_feature_xgb.csv')
 
-    for path in filepaths:
-        data[path[:-4]] = pd.read_csv(path)
+    # loada out of fold data
+    train_df = pd.read_csv('application_train.csv')
+    oof_lgbm = pd.read_csv('oof_lgbm.csv')
+    oof_xgb = pd.read_csv('oof_xgb.csv')
 
-    ranks = pd.DataFrame(columns=data.keys())
+#    train_df = train_df[train_df['CODE_GENDER'] != 'XNA']
 
-    for key in data.keys():
-        ranks[key] = data[key].TARGET.rank(method='min')
-    ranks['Average'] = ranks.mean(axis=1)
-    ranks['Scaled Rank'] = (ranks['Average'] - ranks['Average'].min()) / (ranks['Average'].max() - ranks['Average'].min())
-    print(ranks.corr()[:1])
+    train_df['lgbm'] = oof_lgbm['OOF_PRED']
+    train_df['xgb'] = oof_xgb['OOF_PRED']
 
-    ranks['Score'] = ranks[['submission_add_feature_lgbm','submission_add_feature_xgb']].mul(weights).sum(1) / ranks.shape[0]
-    submission_lb = pd.read_csv('submission.csv')
-    submission_lb['TARGET'] = ranks['Score']
+    # find best weights
+    auc_bst = 0.0
+    for w in np.arange(0,1, 0.001):
+        _pred = w * train_df['lgbm'] + (1.0-w) * train_df['xgb']
+        _act = train_df['TARGET'][_pred.notnull()]
+        _pred = _pred[_pred.notnull()]
+        _auc = roc_auc_score(_act, _pred)
+        if _auc > auc_bst:
+            auc_bst = _auc
+            w_bst = (w, 1.0-w)
+        print("w: {}, auc: {}".format(w, _auc))
 
-    # AUDスコアを上げるため提出ファイルの調整を追加→これは最終段階で使いましょう
-    # 0or1に調整する水準を決定（とりあえず上位下位0.05%以下のものを調整）
-    q_high = submission_lb['TARGET'].quantile(0.9995)
-#    q_low = submission_lb['TARGET'].quantile(0.1)
+    print(w_bst)
 
-    submission_lb['TARGET'] = submission_lb['TARGET'].apply(lambda x: 1 if x > q_high else x)
-#    submission_lb['TARGET'] = submission_lb['TARGET'].apply(lambda x: 0 if x < q_low else x)
+    # take average of each predicted values
+    sub['lgbm'] = sub_lgbm['TARGET']
+    sub['xgb'] = sub_xgb['TARGET']
 
-    submission_lb.to_csv("WEIGHT_AVERAGE_RANK.csv", index=None)
+    sub['TARGET'] = w_bst[0]*sub_lgbm['TARGET'] + w_bst[1]*sub_xgb['TARGET']
+
+    # save submission file
+    sub[['SK_ID_CURR', 'TARGET']].to_csv('submission_blend.csv', index= False)
 
 if __name__ == '__main__':
     main()
