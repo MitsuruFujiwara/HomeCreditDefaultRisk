@@ -501,8 +501,8 @@ def getAdditionalFeatures(data):
     data['GOODS_PRICE_CHG']=data['AMT_GOODS_PRICE']*1.0/data['PREV_AMT_GOODS_PRICE_MAX']
 
     # 作ってみた その2
-    data['ADD_NORMALIZED_SCORE_1'] = data['NEW_SOURCES_MEDIAN'] + data['PREV_RATE_DOWN_PAYMENT']
-    data['MINUS_NORMALIZED_SCORE_1'] = data['NEW_SOURCES_MEDIAN'] - data['PREV_RATE_DOWN_PAYMENT']
+    data['ADD_NORMALIZED_SCORE_1'] = data['NEW_SOURCES_MEDIAN'] + data['PREV_RATE_DOWN_PAYMENT_MEAN']
+    data['MINUS_NORMALIZED_SCORE_1'] = data['NEW_SOURCES_MEDIAN'] - data['PREV_RATE_DOWN_PAYMENT_MEAN']
 
     return data
 
