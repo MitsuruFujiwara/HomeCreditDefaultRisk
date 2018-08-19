@@ -16,7 +16,7 @@ import seaborn as sns
 import warnings
 import os
 
-from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test
+from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test, getAdditionalFeatures
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -74,15 +74,15 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
                 'num_threads': -1,
                 'learning_rate': 0.02,
                 'num_iteration': 10000,
-                'num_leaves': 60,
-                'colsample_bytree': 0.0825558273,
-                'subsample': 0.1130928648,
-                'max_depth': 8,
-                'reg_alpha': 5.3802877193,
-                'reg_lambda': 5.4555880527,
-                'min_split_gain': 0.7603019602,
-                'min_child_weight': 31,
-                'min_data_in_leaf': 132,
+                'num_leaves': 39,
+                'colsample_bytree': 0.0587705926,
+                'subsample': 0.5336340435,
+                'max_depth': 7,
+                'reg_alpha': 8.9675927624,
+                'reg_lambda': 9.8953903428,
+                'min_split_gain': 0.911786867,
+                'min_child_weight': 37,
+                'min_data_in_leaf': 629,
                 'verbose': -1,
                 'seed':int(2**n_fold),
                 'bagging_seed':int(2**n_fold),
@@ -203,18 +203,10 @@ def main(debug = False, use_csv=False):
         df = df.join(cc, how='left', on='SK_ID_CURR')
         del cc
         gc.collect()
+    with timer("Process Additional Features"):
+        df = getAdditionalFeatures(df)
     with timer("Run LightGBM with kfold"):
-        # 不要なカラムを落とす処理を追加
-        """
-        dropcolumns=pd.read_csv('feature_importance_not_to_use.csv')
-        dropcolumns = dropcolumns['feature'].tolist()
-        dropcolumns = [d for d in dropcolumns if d in df.columns.tolist()]
-
-        df = df.drop(dropcolumns, axis=1)
-        """
-
-        feat_importance = kfold_lightgbm(df, num_folds= 10, stratified=True, debug= debug)
-
+        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified=True, debug= debug)
         display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance.csv')
 
 if __name__ == "__main__":

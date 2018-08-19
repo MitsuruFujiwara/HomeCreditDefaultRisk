@@ -3,7 +3,7 @@ import pandas as pd
 import xgboost
 
 from bayes_opt import BayesianOptimization
-from LightGBM_with_Simple_Features import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test
+from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test
 
 # 以下参考
 # https://github.com/fmfn/BayesianOptimization
@@ -49,10 +49,9 @@ del BUREAU, PREV, POS, INS, CC
 TRAIN_DF = DF[DF['TARGET'].notnull()]
 FEATS = [f for f in TRAIN_DF.columns if f not in ['TARGET','SK_ID_CURR','SK_ID_BUREAU','SK_ID_PREV','index']]
 
-lgbm_train = lightgbm.Dataset(TRAIN_DF[FEATS],
-                              TRAIN_DF['TARGET'],
-                              free_raw_data=False
-                              )
+xgb_train = xgboost.DMatrix(TRAIN_DF[FEATS],
+                            TRAIN_DF['TARGET']
+                            )
 
 del TRAIN_DF
 
