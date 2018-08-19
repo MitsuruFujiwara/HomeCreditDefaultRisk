@@ -490,12 +490,25 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
     return cc_agg
 
 def getAdditionalFeatures(data):
-    # TODO: ここに組み合わせの処理を追加
+    # 作ってみた その１
+    data['CREDIT_CHG_MAX']=data['AMT_CREDIT']*1.0/data['PREV_AMT_CREDIT_MAX']
+    data['CREDIT_CHG_MEAN']=data['AMT_CREDIT']*1.0/data['PREV_AMT_CREDIT_MEAN']
+    data['CREDIT_SUM_RATIO_BURO']=data['AMT_CREDIT']*1.0/data['BURO_AMT_CREDIT_SUM_MEAN']
+    data['CREDIT_SUM_LIMIT_RATIO_BURO']=data['AMT_CREDIT']*1.0/data['BURO_AMT_CREDIT_SUM_LIMIT_MEAN']
+    data['CREDIT_SUM_DEBT_RATIO_BURO']=data['AMT_CREDIT']*1.0/data['BURO_AMT_CREDIT_SUM_DEBT_MEAN']
+    data['CREDIT_SUM_OVERDUE_RATIO_BURO']=data['AMT_CREDIT']*1.0/data['BURO_AMT_CREDIT_SUM_OVERDUE_MEAN']
+    data['GOODS_PRICE_RATIO_CHG'] = (data['AMT_GOODS_PRICE']*1.0/data['AMT_ANNUITY'])/(data['PREV_AMT_GOODS_PRICE_MAX']*1.0/data['PREV_AMT_ANNUITY_MAX'])
+    data['GOODS_PRICE_CHG']=data['AMT_GOODS_PRICE']*1.0/data['PREV_AMT_GOODS_PRICE_MAX']
+
+    # 作ってみた その2
+    data['ADD_NORMALIZED_SCORE_1'] = data['NEW_SOURCES_MEDIAN'] + data['PREV_RATE_DOWN_PAYMENT']
+    data['MINUS_NORMALIZED_SCORE_1'] = data['NEW_SOURCES_MEDIAN'] - data['PREV_RATE_DOWN_PAYMENT']
+
     return data
 
 if __name__ == '__main__':
     # test
-    num_rows = 10000
+    num_rows = 5000
 
     # application
     df = application_train_test(num_rows)
