@@ -489,6 +489,10 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
     gc.collect()
     return cc_agg
 
+def getAdditionalFeatures(data):
+    # TODO: ここに組み合わせの処理を追加
+    return data
+
 if __name__ == '__main__':
     # test
     num_rows = 10000
@@ -520,5 +524,7 @@ if __name__ == '__main__':
     cc = credit_card_balance(num_rows)
     df = df.join(cc, how='left', on='SK_ID_CURR')
     del cc
+
+    df = getAdditionalFeatures(df)
 
     print(df)
