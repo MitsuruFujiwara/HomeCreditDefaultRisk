@@ -23,24 +23,28 @@ def main():
     oof_lgbm = pd.read_csv('oof_lgbm.csv')
     oof_xgb = pd.read_csv('oof_xgb.csv')
 
-#    train_df = train_df[train_df['CODE_GENDER'] != 'XNA']
+    oof_lgbm.columns=['SK_ID_CURR', 'lgbm']
+    oof_xgb.columns=['SK_ID_CURR', 'xgb']
+    oof_lgbm.index=oof_lgbm['SK_ID_CURR']
+    oof_xgb.index=oof_xgb['SK_ID_CURR']
+    train_df.index=train_df['SK_ID_CURR']
 
-    train_df['lgbm'] = oof_lgbm['OOF_PRED']
-    train_df['xgb'] = oof_xgb['OOF_PRED']
+    train_df = train_df.merge(oof_lgbm, how='left', on='SK_ID_CURR')
+    train_df = train_df.merge(oof_xgb, how='left', on='SK_ID_CURR')
+    train_df = train_df[['SK_ID_CURR','TARGET', 'lgbm', 'xgb']].dropna()
 
     # find best weights
     auc_bst = 0.0
-    for w in np.arange(0,1, 0.001):
+    for w in np.arange(0,1.001, 0.001):
         _pred = w * train_df['lgbm'] + (1.0-w) * train_df['xgb']
-        _act = train_df['TARGET'][_pred.notnull()]
-        _pred = _pred[_pred.notnull()]
-        _auc = roc_auc_score(_act, _pred)
+        _auc = roc_auc_score(train_df['TARGET'], _pred)
         if _auc > auc_bst:
             auc_bst = _auc
             w_bst = (w, 1.0-w)
-        print("w: {}, auc: {}".format(w, _auc))
+        if np.mod(w*1000, 10)==0:
+            print("w: {}, auc: {}".format(w, _auc))
 
-    print(w_bst)
+    print("best w: {}, best rmse: {}".format(w_bst, auc_bst))
 
     # take average of each predicted values
     sub['lgbm'] = sub_lgbm['TARGET']

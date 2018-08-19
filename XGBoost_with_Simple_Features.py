@@ -16,7 +16,7 @@ import seaborn as sns
 import warnings
 import os
 
-from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test
+from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test, getAdditionalFeatures
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -69,15 +69,15 @@ def kfold_xgboost(df, num_folds, stratified = False, debug= False):
                 'booster': 'gbtree',
                 'eval_metric':'auc',
                 'silent':1,
-                'eta': 0.02,
-                'max_depth': 5,
-                'min_child_weight': 35.5631340537,
-                'gamma': 0.6659946565,
-                'subsample': 0.9235943173,
-                'colsample_bytree': 0.0519572161,
-                'colsample_bylevel': 0.9073497664,
-                'alpha':9.8481138755,
-                'lambda': 3.2862627718,
+                'eta': 0.05,
+                'max_depth': 6,
+                'min_child_weight': 30,
+                'gamma': 0,
+                'subsample': 0.85,
+                'colsample_bytree': 0.7,
+                'colsample_bylevel': 0.632,
+                'alpha':0,
+                'lambda': 0,
                 'tree_method': 'gpu_hist', # GPU parameter
                 'predictor': 'gpu_predictor', # GPU parameter
                 'seed':int(2**n_fold)
@@ -197,20 +197,10 @@ def main(debug = False, use_csv=False):
         df = df.join(cc, how='left', on='SK_ID_CURR')
         del cc
         gc.collect()
+    with timer("Process Additional Features"):
+        df = getAdditionalFeatures(df)
     with timer("Run XGBoost with kfold"):
-        # 不要なカラムを落とさない方がスコア高かったのでとりあえずここはコメントアウトしてます
-        # 不要なカラムを落とす処理を追加
-        """
-        dropcolumns=pd.read_csv('feature_importance_not_to_use.csv')
-        dropcolumns = dropcolumns['feature'].tolist()
-        dropcolumns = [d for d in dropcolumns if d in df.columns.tolist()]
-
-        df = df.drop(dropcolumns, axis=1)
-        """
-
-        # 通常モデルのみ推定
-        feat_importance = kfold_xgboost(df, num_folds= 10, stratified=True, debug= debug)
-
+        feat_importance = kfold_xgboost(df, num_folds= 5, stratified=True, debug= debug)
         display_importances(feat_importance ,'xgb_importances.png', 'feature_importance_xgb.csv')
 
 if __name__ == "__main__":
