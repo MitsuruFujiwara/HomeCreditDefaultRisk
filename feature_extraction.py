@@ -14,6 +14,40 @@ def one_hot_encoder(df, nan_as_category = True):
     new_columns = [c for c in df.columns if c not in original_columns]
     return df, new_columns
 
+def getMomentumFactors(data, feat, key_agg, key_prim):
+    """
+    IDごとの平均変化幅、変化率、最終トランザクションの変化幅、変化率を返す関数
+
+    input:
+        data: テーブルのDataFrame
+        feat: カラム名（string）
+        key_agg: 集計用のキー(SK_ID_CURR)
+        key_prim: 各テーブルの主キー(SK_ID_BUREAUなど)
+
+    output:
+        diff_mean: key_aggごとの変化幅の平均
+        pct_mean: key_aggごとの変化率の平均
+        diff_fin: key_aggごとの最終トランザクションの変化幅
+        pct_fin: key_aggごとの最終トランザクションの変化率
+    """
+
+    # IDごとにdiffとpct changeを集計
+    data['tmp_diff'] = data.groupby(key_agg)[feat].transform(pd.Series.diff)
+    data['tmp_pct'] = data.groupby(key_agg)[feat].transform(pd.Series.pct_change)
+
+    # 全トランザクションの平均
+    diff_mean = data.groupby(key_agg)['tmp_diff'].mean()
+    pct_mean = data.groupby(key_agg)['tmp_pct'].mean()
+
+    # 各IDの最終トランザクションIDを取得
+    id_fin = data.groupby(key_agg)[key_prim].max().tolist()
+
+    # 最終トランザクションの変化幅と変化率
+    diff_fin = data[data[key_prim].isin(id_fin)].groupby(key_agg)['tmp_diff'].mean()
+    pct_fin = data[data[key_prim].isin(id_fin)].groupby(key_agg)['tmp_pct'].mean()
+
+    return (diff_mean, pct_mean, diff_fin, pct_fin)
+
 # Preprocess application_train.csv and application_test.csv
 def application_train_test(num_rows = None, nan_as_category = False):
     # Read data and merge
@@ -134,14 +168,23 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
     bb, bb_cat = one_hot_encoder(bb, nan_as_category)
     bureau, bureau_cat = one_hot_encoder(bureau, nan_as_category)
 
+
     # Bureau balance: Perform aggregations and merge with bureau.csv
     bb_aggregations = {'MONTHS_BALANCE': ['min', 'max', 'size']}
     for col in bb_cat:
         bb_aggregations[col] = ['mean']
+
     bb_agg = bb.groupby('SK_ID_BUREAU').agg(bb_aggregations)
+
+    # bbテーブルのモメンタムファクターを追加
+    # TODO: うまく入らないので要確認
+    """
+    momentom_factor_bb = getMomentumFactors(bb, 'MONTHS_BALANCE', 'SK_ID_BUREAU', 'SK_ID_BUREAU')
+    bb_agg['BURO_MONTHS_BALANCE_DIFF_MEAN'] = momentom_factor_bb[0]
+    bb_agg['BURO_MONTHS_BALANCE_PCT_MEAN'] = momentom_factor_bb[1]
+    """
     bb_agg.columns = pd.Index([e[0] + "_" + e[1].upper() for e in bb_agg.columns.tolist()])
     bureau = bureau.join(bb_agg, how='left', on='SK_ID_BUREAU')
-    bureau.drop(['SK_ID_BUREAU'], axis=1, inplace= True)
     del bb, bb_agg
     gc.collect()
 
@@ -225,6 +268,21 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
 
     # 新たに追加した変数です
     bureau_agg['BURO_CREDIT_ACTIVE_CLOSED_RATIO']=bureau_agg['BURO_CREDIT_ACTIVE_Active_MEAN']/bureau_agg['BURO_CREDIT_ACTIVE_Closed_MEAN']
+
+    # モメンタムファクターの追加
+    feats_mom_buro = ['DAYS_CREDIT', 'CREDIT_DAY_OVERDUE', 'DAYS_CREDIT_ENDDATE',
+                      'DAYS_ENDDATE_FACT', 'AMT_CREDIT_MAX_OVERDUE', 'CNT_CREDIT_PROLONG',
+                      'AMT_CREDIT_SUM', 'AMT_CREDIT_SUM_DEBT', 'AMT_CREDIT_SUM_LIMIT',
+                      'AMT_CREDIT_SUM_OVERDUE', 'DAYS_CREDIT_UPDATE', 'AMT_ANNUITY']
+    # bureauテーブルのモメンタムファクターを追加
+    for f in feats_mom_buro:
+        momentom_factor_buro = getMomentumFactors(bureau, f, 'SK_ID_CURR', 'SK_ID_BUREAU')
+        bureau_agg['BURO_'+f+'_DIFF_MEAN'] = momentom_factor_buro[0]
+        bureau_agg['BURO_'+f+'_PCT_MEAN'] = momentom_factor_buro[1]
+        bureau_agg['BURO_'+f+'_DIFF_FIN'] = momentom_factor_buro[2]
+        bureau_agg['BURO_'+f+'_PCT_FIN'] = momentom_factor_buro[3]
+        del momentom_factor_buro
+    bureau.drop(['SK_ID_BUREAU'], axis=1, inplace= True)
 
     # TODO:
     """
@@ -320,6 +378,22 @@ def previous_applications(num_rows = None, nan_as_category = True):
     refused_agg.columns = pd.Index(['REFUSED_' + e[0] + "_" + e[1].upper() for e in refused_agg.columns.tolist()])
     prev_agg = prev_agg.join(refused_agg, how='left', on='SK_ID_CURR')
 
+    # モメンタムファクターの追加
+    feats_mom_prev = ['AMT_ANNUITY', 'AMT_APPLICATION', 'AMT_CREDIT', 'AMT_DOWN_PAYMENT',
+                      'AMT_GOODS_PRICE', 'RATE_DOWN_PAYMENT', 'RATE_INTEREST_PRIMARY',
+                      'RATE_INTEREST_PRIVILEGED', 'DAYS_DECISION', 'CNT_PAYMENT',
+                      'DAYS_FIRST_DRAWING', 'DAYS_FIRST_DUE', 'DAYS_LAST_DUE_1ST_VERSION',
+                      'DAYS_LAST_DUE', 'DAYS_TERMINATION']
+
+    # prevテーブルのモメンタムファクターを追加
+    for f in feats_mom_prev:
+        momentom_factor_prev = getMomentumFactors(prev, f, 'SK_ID_CURR', 'SK_ID_PREV')
+        prev_agg['PREV_'+f+'_DIFF_MEAN'] = momentom_factor_prev[0]
+        prev_agg['PREV_'+f+'_PCT_MEAN'] = momentom_factor_prev[1]
+        prev_agg['PREV_'+f+'_DIFF_FIN'] = momentom_factor_prev[2]
+        prev_agg['PREV_'+f+'_PCT_FIN'] = momentom_factor_prev[3]
+        del momentom_factor_prev
+
     del refused, refused_agg, approved, approved_agg, prev
     gc.collect()
     return prev_agg
@@ -359,6 +433,19 @@ def pos_cash(num_rows = None, nan_as_category = True):
     pos_agg.columns = pd.Index(['POS_' + e[0] + "_" + e[1].upper() for e in pos_agg.columns.tolist()])
     # Count pos cash accounts
     pos_agg['POS_COUNT'] = pos.groupby('SK_ID_CURR').size()
+
+    # モメンタムファクターの追加
+    feats_mom_pos = ['MONTHS_BALANCE', 'CNT_INSTALMENT', 'CNT_INSTALMENT_FUTURE']
+
+    # posテーブルのモメンタムファクターを追加
+    for f in feats_mom_pos:
+        momentom_factor_pos = getMomentumFactors(pos, f, 'SK_ID_CURR', 'SK_ID_PREV')
+        pos_agg['POS_'+f+'_DIFF_MEAN'] = momentom_factor_pos[0]
+        pos_agg['POS_'+f+'_PCT_MEAN'] = momentom_factor_pos[1]
+        pos_agg['POS_'+f+'_DIFF_FIN'] = momentom_factor_pos[2]
+        pos_agg['POS_'+f+'_PCT_FIN'] = momentom_factor_pos[3]
+        del momentom_factor_pos
+
     del pos
     gc.collect()
     return pos_agg
@@ -396,6 +483,20 @@ def installments_payments(num_rows = None, nan_as_category = True):
     ins_agg.columns = pd.Index(['INSTAL_' + e[0] + "_" + e[1].upper() for e in ins_agg.columns.tolist()])
     # Count installments accounts
     ins_agg['INSTAL_COUNT'] = ins.groupby('SK_ID_CURR').size()
+
+    # モメンタムファクターの追加
+    feats_mom_ins = ['NUM_INSTALMENT_VERSION', 'NUM_INSTALMENT_NUMBER', 'DAYS_INSTALMENT',
+                     'DAYS_ENTRY_PAYMENT', 'AMT_INSTALMENT', 'AMT_PAYMENT']
+
+    # insテーブルのモメンタムファクターを追加
+    for f in feats_mom_ins:
+        momentom_factor_ins = getMomentumFactors(ins, f, 'SK_ID_CURR', 'SK_ID_PREV')
+        ins_agg['INSTAL_'+f+'_DIFF_MEAN'] = momentom_factor_ins[0]
+        ins_agg['INSTAL_'+f+'_PCT_MEAN'] = momentom_factor_ins[1]
+        ins_agg['INSTAL_'+f+'_DIFF_FIN'] = momentom_factor_ins[2]
+        ins_agg['INSTAL_'+f+'_PCT_FIN'] = momentom_factor_ins[3]
+        del momentom_factor_ins
+
     del ins
     gc.collect()
     return ins_agg
@@ -404,9 +505,8 @@ def installments_payments(num_rows = None, nan_as_category = True):
 def credit_card_balance(num_rows = None, nan_as_category = True):
     cc = pd.read_csv('credit_card_balance.csv', nrows = num_rows)
     cc, cat_cols = one_hot_encoder(cc, nan_as_category= True)
-    # General aggregations
-    cc.drop(['SK_ID_PREV'], axis= 1, inplace = True)
 
+    # General aggregations
     # 追加の前処理 https://github.com/neptune-ml/open-solution-home-credit/wiki/LightGBM-with-smarter-features
     #cc['AMT_DRAWINGS_ATM_CURRENT'][cc['AMT_DRAWINGS_ATM_CURRENT'] < 0] = np.nan
     ix = cc[cc['AMT_DRAWINGS_ATM_CURRENT'] < 0].index
@@ -479,6 +579,25 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
     cc_agg.columns = pd.Index(['CC_' + e[0] + "_" + e[1].upper() for e in cc_agg.columns.tolist()])
     # Count credit card lines
     cc_agg['CC_COUNT'] = cc.groupby('SK_ID_CURR').size()
+
+    # モメンタムファクターの追加
+    feats_mom_cc = ['MONTHS_BALANCE', 'AMT_BALANCE', 'AMT_CREDIT_LIMIT_ACTUAL',
+                    'AMT_DRAWINGS_ATM_CURRENT', 'AMT_DRAWINGS_CURRENT', 'AMT_DRAWINGS_OTHER_CURRENT',
+                    'AMT_DRAWINGS_POS_CURRENT', 'AMT_INST_MIN_REGULARITY', 'AMT_PAYMENT_CURRENT',
+                    'AMT_PAYMENT_TOTAL_CURRENT', 'AMT_RECEIVABLE_PRINCIPAL', 'AMT_RECIVABLE',
+                    'AMT_TOTAL_RECEIVABLE', 'CNT_DRAWINGS_ATM_CURRENT', 'CNT_DRAWINGS_CURRENT',
+                    'CNT_DRAWINGS_OTHER_CURRENT', 'CNT_DRAWINGS_POS_CURRENT', 'CNT_INSTALMENT_MATURE_CUM']
+    # ccテーブルのモメンタムファクターを追加
+    for f in feats_mom_cc:
+        momentom_factor_cc = getMomentumFactors(cc, f, 'SK_ID_CURR', 'SK_ID_PREV')
+        cc_agg['CC_'+f+'_DIFF_MEAN'] = momentom_factor_cc[0]
+        cc_agg['CC_'+f+'_PCT_MEAN'] = momentom_factor_cc[1]
+        cc_agg['CC_'+f+'_DIFF_FIN'] = momentom_factor_cc[2]
+        cc_agg['CC_'+f+'_PCT_FIN'] = momentom_factor_cc[3]
+        del momentom_factor_cc
+
+    cc.drop(['SK_ID_PREV'], axis= 1, inplace = True)
+
     # TODO:
     """
     features['credit_card_cash_card_ratio'] = features['credit_card_drawings_atm'] / features[

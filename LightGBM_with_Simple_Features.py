@@ -206,7 +206,7 @@ def main(debug = False, use_csv=False):
     with timer("Process Additional Features"):
         df = getAdditionalFeatures(df)
     with timer("Run LightGBM with kfold"):
-        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified=True, debug= debug)
+        feat_importance = kfold_lightgbm(df, num_folds= 10, stratified=True, debug= debug)
         display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance.csv')
 
 if __name__ == "__main__":
