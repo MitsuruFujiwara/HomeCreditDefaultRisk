@@ -135,6 +135,39 @@ def application_train_test(num_rows = None, nan_as_category = False):
     df['NEW_SOURCES_MEDIAN23'] = df[['EXT_SOURCE_2', 'EXT_SOURCE_3']].median(axis=1)
     df['NEW_SOURCES_MEDIAN31'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_3']].median(axis=1)
 
+    # Polynomial Featuresを追加します。　参考： https://www.kaggle.com/willkoehrsen/start-here-a-gentle-introduction
+    df['NEW_EXT_SOURCES_BIRTH_MEAN'] = df[['EXT_SOURCE_1', 'EXT_SOURCE_2', 'EXT_SOURCE_3', 'DAYS_BIRTH']].mean(axis=1)
+    df['NEW_SOURCE_1^2'] = df['EXT_SOURCE_1']**2
+    df['NEW_SOURCE_2^2'] = df['EXT_SOURCE_2']**2
+    df['NEW_SOURCE_3^2'] = df['EXT_SOURCE_3']**2
+    df['NEW_SOURCE_1^3'] = df['EXT_SOURCE_1']**3
+    df['NEW_SOURCE_2^3'] = df['EXT_SOURCE_2']**3
+    df['NEW_SOURCE_3^3'] = df['EXT_SOURCE_3']**3
+    df['NEW_SOURCE_PROD_1_2^2'] = df['EXT_SOURCE_1'] * df['EXT_SOURCE_2']**2
+    df['NEW_SOURCE_PROD_1_3^2'] = df['EXT_SOURCE_1'] * df['EXT_SOURCE_3']**2
+    df['NEW_SOURCE_PROD_1_B^2'] = df['EXT_SOURCE_1'] * df['DAYS_BIRTH']**2
+    df['NEW_SOURCE_PROD_2_1^2'] = df['EXT_SOURCE_2'] * df['EXT_SOURCE_1']**2
+    df['NEW_SOURCE_PROD_2_3^2'] = df['EXT_SOURCE_2'] * df['EXT_SOURCE_3']**2
+    df['NEW_SOURCE_PROD_2_B^2'] = df['EXT_SOURCE_2'] * df['DAYS_BIRTH']**2
+    df['NEW_SOURCE_PROD_3_1^2'] = df['EXT_SOURCE_3'] * df['EXT_SOURCE_1']**2
+    df['NEW_SOURCE_PROD_3_2^2'] = df['EXT_SOURCE_3'] * df['EXT_SOURCE_2']**2
+    df['NEW_SOURCE_PROD_3_B^2'] = df['EXT_SOURCE_3'] * df['DAYS_BIRTH']**2
+    df['NEW_SOURCE_PROD_B_1^2'] = df['DAYS_BIRTH'] * df['EXT_SOURCE_1']**2
+    df['NEW_SOURCE_PROD_B_2^2'] = df['DAYS_BIRTH'] * df['EXT_SOURCE_2']**2
+    df['NEW_SOURCE_PROD_B_3^2'] = df['DAYS_BIRTH'] * df['EXT_SOURCE_3']**2
+
+    df['NEW_SOURCES_PROD1_BIRTH'] = df['EXT_SOURCE_1'] * df['DAYS_BIRTH']
+    df['NEW_SOURCES_PROD2_BIRTH'] = df['EXT_SOURCE_2'] * df['DAYS_BIRTH']
+    df['NEW_SOURCES_PROD3_BIRTH'] = df['EXT_SOURCE_3'] * df['DAYS_BIRTH']
+
+    df['NEW_SOURCES_PROD12_BIRTH'] = df['EXT_SOURCE_1'] * df['EXT_SOURCE_2'] * df['DAYS_BIRTH']
+    df['NEW_SOURCES_PROD23_BIRTH'] = df['EXT_SOURCE_2'] * df['EXT_SOURCE_3'] * df['DAYS_BIRTH']
+    df['NEW_SOURCES_PROD31_BIRTH'] = df['EXT_SOURCE_3'] * df['EXT_SOURCE_1'] * df['DAYS_BIRTH']
+
+    df['NEW_SOURCE1_BIRTH_RATIO'] = df['EXT_SOURCE_1'] / df['DAYS_BIRTH']
+    df['NEW_SOURCE2_BIRTH_RATIO'] = df['EXT_SOURCE_2'] / df['DAYS_BIRTH']
+    df['NEW_SOURCE3_BIRTH_RATIO'] = df['EXT_SOURCE_3'] / df['DAYS_BIRTH']
+
     # さいつよっぽいやつの組み合わせ
     df['NEW_CREDIT_ANNUITY_SOURCES_RATIO'] = df['NEW_CREDIT_TO_ANNUITY_RATIO'] / df['NEW_EXT_SOURCES_MEAN']
 
