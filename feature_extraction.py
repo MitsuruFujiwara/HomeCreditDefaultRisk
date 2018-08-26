@@ -24,6 +24,40 @@ def one_hot_encoder(df, nan_as_category = True):
     new_columns = [c for c in df.columns if c not in original_columns]
     return df, new_columns
 
+def get_amt_factor(df,num_rows = None):
+    tgt_cols = ['SK_ID_CURR','AMT_ANNUITY','AMT_CREDIT','AMT_GOODS_PRICE']
+    tgt_cols_without = ['AMT_ANNUITY','AMT_CREDIT','AMT_GOODS_PRICE']
+
+    data = df.loc[:,tgt_cols]
+    prev = pd.read_csv('previous_application.csv', nrows = num_rows)
+
+    temp = prev.loc[:,tgt_cols].groupby(['SK_ID_CURR'])
+    grouped_prev_avg = temp.mean()
+    grouped_prev_avg.columns = list(map(lambda x:x+"_AVG" ,tgt_cols_without))
+    grouped_prev_avg = grouped_prev_avg.reset_index()
+    grouped_prev_std = temp.std()
+    grouped_prev_std.columns = list(map(lambda x:x+"_STD" ,tgt_cols_without))
+    grouped_prev_std = grouped_prev_std.reset_index()
+
+    data = pd.merge(data, grouped_prev_avg, on = 'SK_ID_CURR', how = "left")
+    data = pd.merge(data, grouped_prev_std, on = 'SK_ID_CURR', how = "left")
+
+    for col in tgt_cols_without:
+        if math.isnan(np.nanmean(data.loc[:,col+"_STD"]/data.loc[:,col+"_AVG"])):
+            std_avg_ratio = 0.5
+        else :
+            std_avg_ratio = np.nanmean(data.loc[:,col+"_STD"]/data.loc[:,col+"_AVG"])
+
+        tgt_index = data[col+"_AVG"].isnull().index
+        data.loc[tgt_index,col+"_AVG"] = data.loc[tgt_index,col]
+        tgt_index = data[col+"_STD"].isnull().index
+        data.loc[tgt_index,col+"_STD"] = data.loc[tgt_index,col+"_AVG"]*std_avg_ratio
+        data.loc[:,col+'_FACTOR']= (data.loc[:,col]-data.loc[:,col+"_AVG"])/data.loc[:,col+"_STD"]
+
+    output = data.loc[:,['SK_ID_CURR','AMT_ANNUITY_FACTOR','AMT_CREDIT_FACTOR','AMT_GOODS_PRICE_FACTOR']]
+    output = output.set_index(['SK_ID_CURR'])
+    return output
+
 def getMomentumFactors(data, feat, key_agg, key_prim):
     """
     IDごとの平均変化幅、変化率、最終トランザクションの変化幅、変化率を返す関数
@@ -665,6 +699,9 @@ def getAdditionalFeatures(data):
     data['ADD_NORMALIZED_SCORE_3'] = data['NEW_SOURCES_MEDIAN'] + data['PREV_RATE_INTEREST_PRIVILEGED_MEAN']
     data['MINUS_NORMALIZED_SCORE_3'] = data['NEW_SOURCES_MEDIAN'] - data['PREV_RATE_INTEREST_PRIVILEGED_MEAN']
 
+    # 最後の処理の前にこれをかませることにします。
+    data = get_amt_factor(data)
+
     # correlation高い変数の削除
     col_drop = removeCorrelatedVariables(data, 0.9)
     print('There are %d columns to remove.' % (len(col_drop)))
@@ -676,40 +713,6 @@ def getAdditionalFeatures(data):
     data = data.drop(columns = col_missing)
 
     return data
-
-def get_amt_factor(df,num_rows = None):
-    tgt_cols = ['SK_ID_CURR','AMT_ANNUITY','AMT_CREDIT','AMT_GOODS_PRICE']
-    tgt_cols_without = ['AMT_ANNUITY','AMT_CREDIT','AMT_GOODS_PRICE']
-
-    data = df.loc[:,tgt_cols]
-    prev = pd.read_csv('previous_application.csv', nrows = num_rows)
-
-    temp = prev.loc[:,tgt_cols].groupby(['SK_ID_CURR'])
-    grouped_prev_avg = temp.mean()
-    grouped_prev_avg.columns = list(map(lambda x:x+"_AVG" ,tgt_cols_without))
-    grouped_prev_avg = grouped_prev_avg.reset_index()
-    grouped_prev_std = temp.std()
-    grouped_prev_std.columns = list(map(lambda x:x+"_STD" ,tgt_cols_without))
-    grouped_prev_std = grouped_prev_std.reset_index()
-
-    data = pd.merge(data, grouped_prev_avg, on = 'SK_ID_CURR', how = "left")
-    data = pd.merge(data, grouped_prev_std, on = 'SK_ID_CURR', how = "left")
-
-    for col in tgt_cols_without:
-        if math.isnan(np.nanmean(data.loc[:,col+"_STD"]/data.loc[:,col+"_AVG"])):
-            std_avg_ratio = 0.5
-        else :
-            std_avg_ratio = np.nanmean(data.loc[:,col+"_STD"]/data.loc[:,col+"_AVG"])
-
-        tgt_index = data[col+"_AVG"].isnull().index
-        data.loc[tgt_index,col+"_AVG"] = data.loc[tgt_index,col]
-        tgt_index = data[col+"_STD"].isnull().index
-        data.loc[tgt_index,col+"_STD"] = data.loc[tgt_index,col+"_AVG"]*std_avg_ratio
-        data.loc[:,col+'_FACTOR']= (data.loc[:,col]-data.loc[:,col+"_AVG"])/data.loc[:,col+"_STD"]
-
-    output = data.loc[:,['SK_ID_CURR','AMT_ANNUITY_FACTOR','AMT_CREDIT_FACTOR','AMT_GOODS_PRICE_FACTOR']]
-    output = output.set_index(['SK_ID_CURR'])
-    return output
 
 if __name__ == '__main__':
     # test
@@ -729,10 +732,10 @@ if __name__ == '__main__':
     del prev
 
     # prev-additional
-    prev_add = get_amt_factor(df,num_rows)
-    df = df.join(prev_add, how='left', on='SK_ID_CURR')
-    del prev_add
-    gc.collect()
+#    prev_add = get_amt_factor(df,num_rows)
+#    df = df.join(prev_add, how='left', on='SK_ID_CURR')
+#    del prev_add
+#    gc.collect()
 
     # pos
     pos = pos_cash(num_rows)
