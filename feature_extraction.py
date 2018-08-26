@@ -701,14 +701,14 @@ def getAdditionalFeatures(data):
     data['MINUS_NORMALIZED_SCORE_3'] = data['NEW_SOURCES_MEDIAN'] - data['PREV_RATE_INTEREST_PRIVILEGED_MEAN']
 
     # correlation高い変数の削除
-    col_drop = removeCorrelatedVariables(data, 0.9)
-    print('There are %d columns to remove.' % (len(col_drop)))
-    data = data.drop(columns = col_drop)
+#    col_drop = removeCorrelatedVariables(data, 0.9)
+#    print('There are %d columns to remove.' % (len(col_drop)))
+#    data = data.drop(columns = col_drop)
 
     # 欠損値率の高い変数の削除
-    col_missing = removeMissingVariables(data, 0.75)
-    print('There are %d columns with more than 75%% missing values' % len(col_missing))
-    data = data.drop(columns = col_missing)
+#    col_missing = removeMissingVariables(data, 0.75)
+#    print('There are %d columns with more than 75%% missing values' % len(col_missing))
+#    data = data.drop(columns = col_missing)
 
     return data
 

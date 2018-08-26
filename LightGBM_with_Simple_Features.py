@@ -207,11 +207,7 @@ def main(debug = False, use_csv=False):
         del cc
         gc.collect()
     with timer("Process Additional Features"):
-        if use_csv:
-            df = df.read_csv('df_selected.csv', index_col='SK_ID_CURR')
-        else:
-            df = getAdditionalFeatures(df)
-            df.to_csv('df_selected.csv')
+        df = getAdditionalFeatures(df)
     with timer("Run LightGBM with kfold"):
         feat_importance = kfold_lightgbm(df, num_folds= 5, stratified=True, debug= debug)
         display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance_lgbm.csv')
