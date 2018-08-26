@@ -33,7 +33,6 @@ def main():
     train_df = train_df.merge(oof_xgb, how='left', on='SK_ID_CURR')
     train_df = train_df[['SK_ID_CURR','TARGET', 'lgbm', 'xgb']].dropna()
 
-    """
     # find best weights
     auc_bst = 0.0
     for w in np.arange(0,1.001, 0.001):
@@ -46,14 +45,13 @@ def main():
             print("w: {}, auc: {}".format(w, _auc))
 
     print("best w: {}, best auc: {}".format(w_bst, auc_bst))
-    """
 
     # take average of each prediction
     sub['lgbm'] = sub_lgbm['TARGET']
     sub['xgb'] = sub_xgb['TARGET']
 
-#    sub['TARGET'] = w_bst[0]*sub_lgbm['TARGET'] + w_bst[1]*sub_xgb['TARGET']
-    sub['TARGET'] = 0.5*sub_lgbm['TARGET'] + 0.5*sub_xgb['TARGET']
+    sub['TARGET'] = w_bst[0]*sub_lgbm['TARGET'] + w_bst[1]*sub_xgb['TARGET']
+#    sub['TARGET'] = 0.5*sub_lgbm['TARGET'] + 0.5*sub_xgb['TARGET']
 
     # save submission file
     sub[['SK_ID_CURR', 'TARGET']].to_csv('submission_blend.csv', index= False)

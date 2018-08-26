@@ -200,7 +200,7 @@ def main(debug = False, use_csv=False):
     with timer("Process Additional Features"):
         df = getAdditionalFeatures(df)
     with timer("Run XGBoost with kfold"):
-        feat_importance = kfold_xgboost(df, num_folds= 10, stratified=True, debug= debug)
+        feat_importance = kfold_xgboost(df, num_folds= 5, stratified=True, debug= debug)
         display_importances(feat_importance ,'xgb_importances.png', 'feature_importance_xgb.csv')
 
 if __name__ == "__main__":
@@ -211,4 +211,4 @@ if __name__ == "__main__":
         if os.environ['USER'] == 'daiyamita':
             main(debug = True ,use_csv=False)
         else:
-            main(use_csv=True)
+            main(debug = False, use_csv=True)

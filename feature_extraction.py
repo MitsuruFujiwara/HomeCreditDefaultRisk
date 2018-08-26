@@ -46,6 +46,8 @@ def getMomentumFactors(data, feat, key_agg, key_prim):
     diff_fin = data[data[key_prim].isin(id_fin)].groupby(key_agg)['tmp_diff'].mean()
     pct_fin = data[data[key_prim].isin(id_fin)].groupby(key_agg)['tmp_pct'].mean()
 
+    del data
+
     return (diff_mean, pct_mean, diff_fin, pct_fin)
 
 # Preprocess application_train.csv and application_test.csv
