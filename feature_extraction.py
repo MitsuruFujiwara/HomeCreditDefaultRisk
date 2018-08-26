@@ -94,15 +94,15 @@ def getMomentumFactors(data, feat, key_agg, key_prim):
 
     return (diff_mean, pct_mean, diff_fin, pct_fin)
 
+# correlation高い変数を削除する機能
 def removeCorrelatedVariables(data, threshold):
-    # correlation高い変数を削除する機能
     corr_matrix = data.corr().abs()
     upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
     col_drop = [column for column in upper.columns if any(upper[column] > threshold) & ('TARGET' not in column)]
     return col_drop
 
+# 欠損値の率が高い変数を削除する機能
 def removeMissingVariables(data, threshold):
-    # 欠損値の率が高い変数を削除する機能
     missing = (data.isnull().sum() / len(data)).sort_values(ascending = False)
     col_missing = missing.index[missing > 0.75]
     col_missing = [column for column in col_missing if 'TARGET' not in column]

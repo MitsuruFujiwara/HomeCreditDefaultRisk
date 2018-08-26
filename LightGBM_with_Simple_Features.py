@@ -16,7 +16,7 @@ import seaborn as sns
 import warnings
 import os
 
-from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test, getAdditionalFeatures
+from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test, getAdditionalFeatures, get_amt_factor
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -171,7 +171,10 @@ def main(debug = False, use_csv=False):
             prev.to_csv('PREV.csv')
         print("Previous applications df shape:", prev.shape)
         df = df.join(prev, how='left', on='SK_ID_CURR')
-        del prev
+        # get_amt_factorここで使います
+        prev_add = get_amt_factor(df,num_rows)
+        df = df.join(prev_add, how='left', on='SK_ID_CURR')
+        del prev, prev_add
         gc.collect()
     with timer("Process POS-CASH balance"):
         if use_csv:
@@ -204,10 +207,14 @@ def main(debug = False, use_csv=False):
         del cc
         gc.collect()
     with timer("Process Additional Features"):
-        df = getAdditionalFeatures(df)
+        if use_csv:
+            df = df.read_csv('df_selected.csv', index_col='SK_ID_CURR')
+        else:
+            df = getAdditionalFeatures(df)
+            df.to_csv('df_selected.csv')
     with timer("Run LightGBM with kfold"):
         feat_importance = kfold_lightgbm(df, num_folds= 5, stratified=True, debug= debug)
-        display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance.csv')
+        display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance_lgbm.csv')
 
 if __name__ == "__main__":
     submission_file_name = "submission_add_feature_lgbm.csv"
