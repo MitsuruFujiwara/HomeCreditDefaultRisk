@@ -98,13 +98,14 @@ def removeCorrelatedVariables(data, threshold):
     # correlation高い変数を削除する機能
     corr_matrix = data.corr().abs()
     upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
-    col_drop = [column for column in upper.columns if any(upper[column] > threshold)]
+    col_drop = [column for column in upper.columns if any(upper[column] > threshold) & ('TARGET' not in column)]
     return col_drop
 
 def removeMissingVariables(data, threshold):
     # 欠損値の率が高い変数を削除する機能
     missing = (data.isnull().sum() / len(data)).sort_values(ascending = False)
     col_missing = missing.index[missing > 0.75]
+    col_missing = [column for column in col_missing if 'TARGET' not in column]
     return col_missing
 
 # Preprocess application_train.csv and application_test.csv
@@ -699,9 +700,6 @@ def getAdditionalFeatures(data):
     data['ADD_NORMALIZED_SCORE_3'] = data['NEW_SOURCES_MEDIAN'] + data['PREV_RATE_INTEREST_PRIVILEGED_MEAN']
     data['MINUS_NORMALIZED_SCORE_3'] = data['NEW_SOURCES_MEDIAN'] - data['PREV_RATE_INTEREST_PRIVILEGED_MEAN']
 
-    # 最後の処理の前にこれをかませることにします。
-    data = get_amt_factor(data)
-
     # correlation高い変数の削除
     col_drop = removeCorrelatedVariables(data, 0.9)
     print('There are %d columns to remove.' % (len(col_drop)))
@@ -732,10 +730,10 @@ if __name__ == '__main__':
     del prev
 
     # prev-additional
-#    prev_add = get_amt_factor(df,num_rows)
-#    df = df.join(prev_add, how='left', on='SK_ID_CURR')
-#    del prev_add
-#    gc.collect()
+    prev_add = get_amt_factor(df,num_rows)
+    df = df.join(prev_add, how='left', on='SK_ID_CURR')
+    del prev_add
+    gc.collect()
 
     # pos
     pos = pos_cash(num_rows)
