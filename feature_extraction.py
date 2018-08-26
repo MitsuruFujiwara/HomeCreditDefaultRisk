@@ -5,6 +5,7 @@
 import pandas as pd
 import numpy as np
 import gc
+import math
 
 # One-hot encoding for categorical columns with get_dummies
 def one_hot_encoder(df, nan_as_category = True):
@@ -668,6 +669,40 @@ def getAdditionalFeatures(data):
 
     return data
 
+def get_amt_factor(df,num_rows = None):
+    tgt_cols = ['SK_ID_CURR','AMT_ANNUITY','AMT_CREDIT','AMT_GOODS_PRICE']
+    tgt_cols_without = ['AMT_ANNUITY','AMT_CREDIT','AMT_GOODS_PRICE']
+
+    data = df.loc[:,tgt_cols]
+    prev = pd.read_csv('previous_application.csv', nrows = num_rows)
+
+    temp = prev.loc[:,tgt_cols].groupby(['SK_ID_CURR'])
+    grouped_prev_avg = temp.mean()
+    grouped_prev_avg.columns = list(map(lambda x:x+"_AVG" ,tgt_cols_without))
+    grouped_prev_avg = grouped_prev_avg.reset_index()
+    grouped_prev_std = temp.std()
+    grouped_prev_std.columns = list(map(lambda x:x+"_STD" ,tgt_cols_without))
+    grouped_prev_std = grouped_prev_std.reset_index()
+
+    data = pd.merge(data, grouped_prev_avg, on = 'SK_ID_CURR', how = "left")
+    data = pd.merge(data, grouped_prev_std, on = 'SK_ID_CURR', how = "left")
+
+    for col in tgt_cols_without:
+        if math.isnan(np.nanmean(data.loc[:,col+"_STD"]/data.loc[:,col+"_AVG"])):
+            std_avg_ratio = 0.5
+        else :
+            std_avg_ratio = np.nanmean(data.loc[:,col+"_STD"]/data.loc[:,col+"_AVG"])
+
+        tgt_index = data[col+"_AVG"].isnull().index
+        data.loc[tgt_index,col+"_AVG"] = data.loc[tgt_index,col]
+        tgt_index = data[col+"_STD"].isnull().index
+        data.loc[tgt_index,col+"_STD"] = data.loc[tgt_index,col+"_AVG"]*std_avg_ratio
+        data.loc[:,col+'_FACTOR']= (data.loc[:,col]-data.loc[:,col+"_AVG"])/data.loc[:,col+"_STD"]
+    
+    output = data.loc[:,['SK_ID_CURR','AMT_ANNUITY_FACTOR','AMT_CREDIT_FACTOR','AMT_GOODS_PRICE_FACTOR']]
+    output = output.set_index(['SK_ID_CURR'])
+    return output
+
 if __name__ == '__main__':
     # test
     num_rows = 5000
@@ -684,6 +719,12 @@ if __name__ == '__main__':
     prev = previous_applications(num_rows)
     df = df.join(prev, how='left', on='SK_ID_CURR')
     del prev
+
+    # prev-additional
+    prev_add = get_amt_factor(df,num_rows)
+    df = df.join(prev_add, how='left', on='SK_ID_CURR')
+    del prev_add
+    gc.collect()
 
     # pos
     pos = pos_cash(num_rows)
