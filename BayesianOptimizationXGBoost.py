@@ -3,7 +3,7 @@ import pandas as pd
 import xgboost
 
 from bayes_opt import BayesianOptimization
-from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test
+from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test, getAdditionalFeatures
 
 # 以下参考
 # https://github.com/fmfn/BayesianOptimization
@@ -42,6 +42,7 @@ DF = DF.join(PREV, how='left', on='SK_ID_CURR')
 DF = DF.join(POS, how='left', on='SK_ID_CURR')
 DF = DF.join(INS, how='left', on='SK_ID_CURR')
 DF = DF.join(CC, how='left', on='SK_ID_CURR')
+DF = getAdditionalFeatures(DF)
 
 del BUREAU, PREV, POS, INS, CC
 

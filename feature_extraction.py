@@ -5,6 +5,15 @@
 import pandas as pd
 import numpy as np
 import gc
+import time
+
+from contextlib import contextmanager
+
+@contextmanager
+def timer(title):
+    t0 = time.time()
+    yield
+    print("{} - done in {:.0f}s".format(title, time.time() - t0))
 
 # One-hot encoding for categorical columns with get_dummies
 def one_hot_encoder(df, nan_as_category = True):
@@ -49,6 +58,19 @@ def getMomentumFactors(data, feat, key_agg, key_prim):
     del data
 
     return (diff_mean, pct_mean, diff_fin, pct_fin)
+
+def removeCorrelatedVariables(data, threshold):
+    # correlation高い変数を削除する機能
+    corr_matrix = data.corr().abs()
+    upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(np.bool))
+    col_drop = [column for column in upper.columns if any(upper[column] > threshold)]
+    return col_drop
+
+def removeMissingVariables(data, threshold):
+    # 欠損値の率が高い変数を削除する機能
+    missing = (data.isnull().sum() / len(data)).sort_values(ascending = False)
+    col_missing = missing.index[missing > 0.75]
+    return col_missing
 
 # Preprocess application_train.csv and application_test.csv
 def application_train_test(num_rows = None, nan_as_category = False):
@@ -205,19 +227,16 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
 
 
     # Bureau balance: Perform aggregations and merge with bureau.csv
-    bb_aggregations = {'MONTHS_BALANCE': ['min', 'max', 'size']}
+    bb_aggregations = {'MONTHS_BALANCE': ['mean', 'min', 'max', 'size']}
     for col in bb_cat:
-        bb_aggregations[col] = ['mean']
+        bb_aggregations[col] = ['mean', 'max', 'min']
 
     bb_agg = bb.groupby('SK_ID_BUREAU').agg(bb_aggregations)
 
-    # bbテーブルのモメンタムファクターを追加
-    # TODO: うまく入らないので要確認
-    """
+    # bbテーブルのモメンタムファクターを追加 # diffは意味なさそうなんでpct_changeのみ追加
     momentom_factor_bb = getMomentumFactors(bb, 'MONTHS_BALANCE', 'SK_ID_BUREAU', 'SK_ID_BUREAU')
-    bb_agg['BURO_MONTHS_BALANCE_DIFF_MEAN'] = momentom_factor_bb[0]
     bb_agg['BURO_MONTHS_BALANCE_PCT_MEAN'] = momentom_factor_bb[1]
-    """
+
     bb_agg.columns = pd.Index([e[0] + "_" + e[1].upper() for e in bb_agg.columns.tolist()])
     bureau = bureau.join(bb_agg, how='left', on='SK_ID_BUREAU')
     del bb, bb_agg
@@ -254,24 +273,24 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
 
     # Bureau and bureau_balance numeric features
     num_aggregations = {
-        'DAYS_CREDIT': [ 'mean', 'var', 'max', 'min', 'skew'], # 強そうな特徴量にはskewも追加する方針です。
-        'DAYS_CREDIT_ENDDATE': [ 'mean'],
-        'DAYS_CREDIT_UPDATE': ['mean'],
-        'CREDIT_DAY_OVERDUE': ['mean'],
+        'DAYS_CREDIT': ['mean', 'var', 'max', 'min', 'skew'], # 強そうな特徴量にはskewも追加する方針です。
+        'DAYS_CREDIT_ENDDATE': ['mean', 'max', 'min'],
+        'DAYS_CREDIT_UPDATE': ['mean', 'max', 'min'],
+        'CREDIT_DAY_OVERDUE': ['mean', 'max', 'min'],
         'AMT_CREDIT_MAX_OVERDUE': ['mean', 'var', 'max', 'min', 'skew'], # 強そうな特徴量にはskewも追加する方針です。
-        'AMT_CREDIT_SUM': [ 'mean', 'sum'],
-        'AMT_CREDIT_SUM_DEBT': [ 'mean', 'sum'],
+        'AMT_CREDIT_SUM': ['mean', 'sum'],
+        'AMT_CREDIT_SUM_DEBT': ['mean', 'sum'],
         'AMT_CREDIT_SUM_OVERDUE': ['mean'],
         'AMT_CREDIT_SUM_LIMIT': ['mean', 'sum'],
         'AMT_ANNUITY': ['max', 'mean'],
 #        'CNT_CREDIT_PROLONG': ['sum'],
-        'MONTHS_BALANCE_MIN': ['min'],
-        'MONTHS_BALANCE_MAX': ['max'],
+        'MONTHS_BALANCE_MIN': ['mean', 'min'],
+        'MONTHS_BALANCE_MAX': ['mean', 'max'],
         'MONTHS_BALANCE_SIZE': ['mean', 'sum'],
         'CREDIT_SUM_TO_DEBT_RATIO':['mean','max','min'],
         'CREDIT_SUM_TO_LIMIT_RATIO':['mean','max','min'],
         'CREDIT_SUM_TO_OVERDUE_RATIO':['mean','max','min'],
-        'CREDIT_SUM_TO_MAX_OVERDUE_RATIO':['min'],
+        'CREDIT_SUM_TO_MAX_OVERDUE_RATIO':['mean', 'min'],
         'CREDIT_SUM_TO_ANNUITY_RATIO':['mean','var','max','min'],
         'MAX_OVERDUE_TO_DAYS_CREDIT_RATIO':['mean','var','max','min','skew'],
         'DAY_OVERDUE_TO_DAYS_CREDIT_RATIO':['var','skew'],
@@ -309,6 +328,7 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
                       'DAYS_ENDDATE_FACT', 'AMT_CREDIT_MAX_OVERDUE', 'CNT_CREDIT_PROLONG',
                       'AMT_CREDIT_SUM', 'AMT_CREDIT_SUM_DEBT', 'AMT_CREDIT_SUM_LIMIT',
                       'AMT_CREDIT_SUM_OVERDUE', 'DAYS_CREDIT_UPDATE', 'AMT_ANNUITY']
+
     # bureauテーブルのモメンタムファクターを追加
     for f in feats_mom_buro:
         momentom_factor_buro = getMomentumFactors(bureau, f, 'SK_ID_CURR', 'SK_ID_BUREAU')
@@ -318,19 +338,6 @@ def bureau_and_balance(num_rows = None, nan_as_category = True):
         bureau_agg['BURO_'+f+'_PCT_FIN'] = momentom_factor_buro[3]
         del momentom_factor_buro
     bureau.drop(['SK_ID_BUREAU'], axis=1, inplace= True)
-
-    # TODO:
-    """
-    features['bureau_average_of_past_loans_per_type'] = \
-        features['bureau_number_of_past_loans'] / features['bureau_number_of_loan_types']
-
-    features['bureau_debt_credit_ratio'] = \
-        features['bureau_total_customer_debt'] / features['bureau_total_customer_credit']
-
-    features['bureau_overdue_debt_ratio'] = \
-        features['bureau_total_customer_overdue'] / features['bureau_total_customer_debt']
-    """
-
     del closed, closed_agg, bureau
     gc.collect()
     return bureau_agg
@@ -632,15 +639,6 @@ def credit_card_balance(num_rows = None, nan_as_category = True):
         del momentom_factor_cc
 
     cc.drop(['SK_ID_PREV'], axis= 1, inplace = True)
-
-    # TODO:
-    """
-    features['credit_card_cash_card_ratio'] = features['credit_card_drawings_atm'] / features[
-        'credit_card_drawings_total']
-
-    features['credit_card_installments_per_loan'] = (
-        features['credit_card_total_installments'] / features['credit_card_number_of_loans'])
-    """
     del cc
     gc.collect()
     return cc_agg
@@ -666,6 +664,16 @@ def getAdditionalFeatures(data):
     data['ADD_NORMALIZED_SCORE_3'] = data['NEW_SOURCES_MEDIAN'] + data['PREV_RATE_INTEREST_PRIVILEGED_MEAN']
     data['MINUS_NORMALIZED_SCORE_3'] = data['NEW_SOURCES_MEDIAN'] - data['PREV_RATE_INTEREST_PRIVILEGED_MEAN']
 
+    # correlation高い変数の削除
+    col_drop = removeCorrelatedVariables(data, 0.9)
+    print('There are %d columns to remove.' % (len(col_drop)))
+    data = data.drop(columns = col_drop)
+
+    # 欠損値率の高い変数の削除
+    col_missing = removeMissingVariables(data, 0.75)
+    print('There are %d columns with more than 75%% missing values' % len(col_missing))
+    data = data.drop(columns = col_missing)
+
     return data
 
 if __name__ == '__main__':
@@ -675,31 +683,33 @@ if __name__ == '__main__':
     # application
     df = application_train_test(num_rows)
 
-    # bureau
-    bureau = bureau_and_balance(num_rows)
-    df = df.join(bureau, how='left', on='SK_ID_CURR')
-    del bureau
+    with timer("Process bureau and bureau_balance"):
+        # bureau
+        bureau = bureau_and_balance(num_rows)
+        df = df.join(bureau, how='left', on='SK_ID_CURR')
+        del bureau
+    with timer("Process previous_applications"):
+        # prev
+        prev = previous_applications(num_rows)
+        df = df.join(prev, how='left', on='SK_ID_CURR')
+        del prev
 
-    # prev
-    prev = previous_applications(num_rows)
-    df = df.join(prev, how='left', on='SK_ID_CURR')
-    del prev
-
-    # pos
-    pos = pos_cash(num_rows)
-    df = df.join(pos, how='left', on='SK_ID_CURR')
-    del pos
-
-    # ins
-    ins = installments_payments(num_rows)
-    df = df.join(ins, how='left', on='SK_ID_CURR')
-    del ins
-
-    # cc
-    cc = credit_card_balance(num_rows)
-    df = df.join(cc, how='left', on='SK_ID_CURR')
-    del cc
-
-    df = getAdditionalFeatures(df)
+    with timer("Process POS-CASH balance"):
+        # pos
+        pos = pos_cash(num_rows)
+        df = df.join(pos, how='left', on='SK_ID_CURR')
+        del pos
+    with timer("Process installments payments"):
+        # ins
+        ins = installments_payments(num_rows)
+        df = df.join(ins, how='left', on='SK_ID_CURR')
+        del ins
+    with timer("Process credit card balance"):
+        # cc
+        cc = credit_card_balance(num_rows)
+        df = df.join(cc, how='left', on='SK_ID_CURR')
+        del cc
+    with timer("Process Additional Features"):
+        df = getAdditionalFeatures(df)
 
     print(df)
