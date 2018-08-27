@@ -3,7 +3,7 @@ import pandas as pd
 import lightgbm
 
 from bayes_opt import BayesianOptimization
-from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test, getAdditionalFeatures
+from feature_extraction import bureau_and_balance, previous_applications, pos_cash, installments_payments, credit_card_balance, application_train_test, getAdditionalFeatures, get_amt_factor
 
 # 以下参考
 # https://github.com/fmfn/BayesianOptimization
@@ -16,6 +16,7 @@ if USE_CSV:
     DF = application_train_test(NUM_ROWS)
     BUREAU = pd.read_csv('BUREAU.csv', index_col=0)
     PREV = pd.read_csv('PREV.csv', index_col=0)
+    PREV_ADD = get_amt_factor(DF,NUM_ROWS)
     POS = pd.read_csv('POS.csv', index_col=0)
     INS = pd.read_csv('INS.csv', index_col=0)
     CC = pd.read_csv('CC.csv', index_col=0)
@@ -24,6 +25,7 @@ else:
     DF = application_train_test(NUM_ROWS)
     BUREAU = bureau_and_balance(NUM_ROWS)
     PREV = previous_applications(NUM_ROWS)
+    PREV_ADD = get_amt_factor(DF,NUM_ROWS)
     POS = pos_cash(NUM_ROWS)
     INS = installments_payments(NUM_ROWS)
     CC = credit_card_balance(NUM_ROWS)
@@ -39,12 +41,13 @@ else:
 # concat datasets
 DF = DF.join(BUREAU, how='left', on='SK_ID_CURR')
 DF = DF.join(PREV, how='left', on='SK_ID_CURR')
+DF = DF.join(PREV_ADD, how='left', on='SK_ID_CURR')
 DF = DF.join(POS, how='left', on='SK_ID_CURR')
 DF = DF.join(INS, how='left', on='SK_ID_CURR')
 DF = DF.join(CC, how='left', on='SK_ID_CURR')
 DF = getAdditionalFeatures(DF)
 
-del BUREAU, PREV, POS, INS, CC
+del BUREAU, PREV, PREV_ADD, POS, INS, CC
 
 # split test & train
 TRAIN_DF = DF[DF['TARGET'].notnull()]
