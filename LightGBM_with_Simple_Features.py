@@ -74,15 +74,15 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
                 'num_threads': -1,
                 'learning_rate': 0.02,
                 'num_iteration': 10000,
-                'num_leaves': 59,
-                'colsample_bytree': 0.078174468357776,
-                'subsample': 0.947871557627918,
-                'max_depth': 8,
-                'reg_alpha': 9.6593660992462,
-                'reg_lambda': 9.33310543672751,
-                'min_split_gain': 0.929679562514217,
-                'min_child_weight': 1.74053876019352,
-                'min_data_in_leaf': 772,
+                'num_leaves': 39,
+                'colsample_bytree': 0.0587705926,
+                'subsample': 0.5336340435,
+                'max_depth': 7,
+                'reg_alpha': 8.9675927624,
+                'reg_lambda': 9.8953903428,
+                'min_split_gain': 0.911786867,
+                'min_child_weight': 37,
+                'min_data_in_leaf': 629,
                 'verbose': -1,
                 'seed':int(2**n_fold),
                 'bagging_seed':int(2**n_fold),
@@ -209,7 +209,7 @@ def main(debug = False, use_csv=False):
     with timer("Process Additional Features"):
         df = getAdditionalFeatures(df)
     with timer("Run LightGBM with kfold"):
-        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified=True, debug= debug)
+        feat_importance = kfold_lightgbm(df, num_folds= 10, stratified=True, debug= debug)
         display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance_lgbm.csv')
 
 if __name__ == "__main__":
