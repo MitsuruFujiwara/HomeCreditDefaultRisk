@@ -201,13 +201,9 @@ def main(debug = False, use_csv=False):
         del cc
         gc.collect()
     with timer("Process Additional Features"):
-        if use_csv:
-            df = df.read_csv('df_selected.csv', index_col='SK_ID_CURR')
-        else:
-            df = getAdditionalFeatures(df)
-            df.to_csv('df_selected.csv')
+        df = getAdditionalFeatures(df)
     with timer("Run XGBoost with kfold"):
-        feat_importance = kfold_xgboost(df, num_folds= 5, stratified=True, debug= debug)
+        feat_importance = kfold_xgboost(df, num_folds= 10, stratified=True, debug= debug)
         display_importances(feat_importance ,'xgb_importances.png', 'feature_importance_xgb.csv')
 
 if __name__ == "__main__":
