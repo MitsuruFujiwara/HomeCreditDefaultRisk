@@ -84,6 +84,7 @@ def main():
     sub_xgb['TARGET'] = sub_xgb['TARGET'].apply(lambda x: 0 if x < q_low_xgb else x)
     sub_xgb['TARGET'] = sub_xgb['TARGET'].apply(lambda x: 1 if x > q_high_xgb else x)
 
+    """
     # find best weights
     auc_bst = 0.0
     for w in np.arange(0,1.001, 0.001):
@@ -96,13 +97,13 @@ def main():
             print("w: {:.3f}, auc: {:.10f}".format(w, _auc))
 
     print("best w: {}, best auc: {:.10f}".format(w_bst, auc_bst))
-
+    """
     # take weighted average of each prediction
     sub['lgbm'] = sub_lgbm['TARGET']
     sub['xgb'] = sub_xgb['TARGET']
 
-    sub['TARGET'] = w_bst[0]*sub_lgbm['TARGET'] + w_bst[1]*sub_xgb['TARGET']
-#    sub['TARGET'] = 0.5*sub_lgbm['TARGET'] + 0.5*sub_xgb['TARGET']
+#    sub['TARGET'] = w_bst[0]*sub_lgbm['TARGET'] + w_bst[1]*sub_xgb['TARGET']
+    sub['TARGET'] = 0.5*sub_lgbm['TARGET'] + 0.5*sub_xgb['TARGET']
 
     # save submission file
     sub[['SK_ID_CURR', 'TARGET']].to_csv('submission_blend.csv', index= False)
