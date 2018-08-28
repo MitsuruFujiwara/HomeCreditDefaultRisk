@@ -91,7 +91,7 @@ def xgb_eval(gamma,
     clf = xgboost.cv(params=params,
                      dtrain=xgb_train,
                      num_boost_round=10000, # early stopありなのでここは大きめの数字にしてます
-                     nfold=5,
+                     nfold=3,
                      metrics=["auc"],
                      folds=None,
                      early_stopping_rounds=200,
@@ -104,7 +104,7 @@ def xgb_eval(gamma,
 def main():
     # clf for bayesian optimization
     clf_bo = BayesianOptimization(xgb_eval, {'gamma':(0, 1),
-                                             'max_depth': (5, 8),
+                                             'max_depth': (3, 7),
                                              'min_child_weight': (0, 45),
                                              'subsample': (0.001, 1),
                                              'colsample_bytree': (0.001, 1),
