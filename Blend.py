@@ -12,16 +12,33 @@ import seaborn as sns
 複数モデルのoutputをブレンドして最終的なsubmitファイルを生成するスクリプト。
 """
 
+# TODO　# 0-1に置き換える最適な閾値を得るやつ
+def getZeroOneThresholds(df_oof):
+    # 閾値の初期値
+    q_high = 1.0
+    q_low = 0.0
+
+    #
+    for q in np.arange(0, 1.0001, 0.0001):
+        _q = df_oof['TARGET'].quantile(q)
+    q_high = df_oof['TARGET'].quantile(0.9995)
+    q_low = df_oof['TARGET'].quantile(0.0005)
+
+    test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 1 if x > q_high else x)
+    test_df['TARGET'] = test_df['TARGET'].apply(lambda x: 0 if x < q_low else x)
+
+    return q_high, q_low
+
 def main():
     # load submission files
     sub = pd.read_csv('sample_submission.csv')
-    sub_lgbm = pd.read_csv('submission_add_feature_lgbm.csv')
-    sub_xgb = pd.read_csv('submission_add_feature_xgb.csv')
+    sub_lgbm = pd.read_csv('submission_add_feature_lgbm_#38.csv')
+    sub_xgb = pd.read_csv('submission_add_feature_xgb_#44.csv')
 
     # loada out of fold data
     train_df = pd.read_csv('application_train.csv')
-    oof_lgbm = pd.read_csv('oof_lgbm.csv')
-    oof_xgb = pd.read_csv('oof_xgb.csv')
+    oof_lgbm = pd.read_csv('oof_lgbm_#43.csv')
+    oof_xgb = pd.read_csv('oof_xgb_#44.csv')
 
     oof_lgbm.columns=['SK_ID_CURR', 'lgbm']
     oof_xgb.columns=['SK_ID_CURR', 'xgb']
