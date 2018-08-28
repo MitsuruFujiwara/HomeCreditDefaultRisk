@@ -66,7 +66,7 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
         # new params https://github.com/neptune-ml/open-solution-home-credit/wiki/LightGBM-clean-dynamic-features
         params = {
                 'device' : 'gpu',
-#                'gpu_use_dp':True, #これで倍精度演算できるっぽいです
+                'gpu_use_dp':True, #これで倍精度演算できるっぽいです
                 'task': 'train',
 #                'boosting_type': 'dart',
                 'objective': 'binary',
@@ -74,15 +74,15 @@ def kfold_lightgbm(df, num_folds, stratified = False, debug= False):
                 'num_threads': -1,
                 'learning_rate': 0.02,
                 'num_iteration': 10000,
-                'num_leaves': 60,
-                'colsample_bytree': 0.0825558273,
-                'subsample': 0.1130928648,
-                'max_depth': 8,
-                'reg_alpha': 5.3802877193,
-                'reg_lambda': 5.4555880527,
-                'min_split_gain': 0.7603019602,
-                'min_child_weight': 31,
-                'min_data_in_leaf': 132,
+                'num_leaves': 39,
+                'colsample_bytree': 0.0587705926,
+                'subsample': 0.5336340435,
+                'max_depth': 7,
+                'reg_alpha': 8.9675927624,
+                'reg_lambda': 9.8953903428,
+                'min_split_gain': 0.911786867,
+                'min_child_weight': 37,
+                'min_data_in_leaf': 629,
                 'verbose': -1,
                 'seed':int(2**n_fold),
                 'bagging_seed':int(2**n_fold),
@@ -209,7 +209,7 @@ def main(debug = False, use_csv=False):
     with timer("Process Additional Features"):
         df = getAdditionalFeatures(df)
     with timer("Run LightGBM with kfold"):
-        feat_importance = kfold_lightgbm(df, num_folds= 5, stratified=True, debug= debug)
+        feat_importance = kfold_lightgbm(df, num_folds= 10, stratified=True, debug= debug)
         display_importances(feat_importance ,'lgbm_importances.png', 'feature_importance_lgbm.csv')
 
 if __name__ == "__main__":
