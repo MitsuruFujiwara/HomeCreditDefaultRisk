@@ -54,7 +54,7 @@ def getZeroOneThresholds(act, pred):
         return -1*_auc
     
 
-    _result = minimize_scalar(fun=optLow, bounds=(0.9, 1), method="bounded")
+    _result = minimize_scalar(fun=optHigh, bounds=(0.9, 1), method="bounded")
     q_high = _result['x']
     print(_result)
     print('best q_high:',q_high)
