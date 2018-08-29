@@ -70,14 +70,14 @@ def kfold_xgboost(df, num_folds, stratified = False, debug= False):
                 'eval_metric':'auc',
                 'silent':1,
                 'eta': 0.02,
-                'max_depth': 5,
-                'min_child_weight': 35.5631340537,
-                'gamma': 0.6659946565,
-                'subsample': 0.9235943173,
-                'colsample_bytree': 0.0519572161,
-                'colsample_bylevel': 0.9073497664,
-                'alpha':9.8481138755,
-                'lambda': 3.2862627718,
+                'max_depth': 6,
+                'min_child_weight': 0.9052,
+                'gamma': 0.0161,
+                'subsample': 0.8629,
+                'colsample_bytree': 0.0947,
+                'colsample_bylevel': 0.7517,
+                'alpha':9.3077,
+                'lambda':7.5993,
                 'tree_method': 'gpu_hist', # GPU parameter
                 'predictor': 'gpu_predictor', # GPU parameter
                 'seed':int(2**n_fold)

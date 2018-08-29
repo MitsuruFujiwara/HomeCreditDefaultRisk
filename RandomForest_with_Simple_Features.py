@@ -33,9 +33,6 @@ def fill_NA(df):
 # Parameters from Tilii kernel: https://www.kaggle.com/prashantkikani/home-rf-et-xgb-cb-stack-oof-lb-0-778
 def kfold_rf(df, num_folds, stratified = False, debug= False):
 
-    # fill nan
-    df = fill_NA(df)
-
     # Divide in training/validation and test data
     train_df = df[df['TARGET'].notnull()]
     test_df = df[df['TARGET'].isnull()]
@@ -56,6 +53,10 @@ def kfold_rf(df, num_folds, stratified = False, debug= False):
     feature_importance_df = pd.DataFrame()
     feats = [f for f in train_df.columns if f not in ['TARGET','SK_ID_CURR','SK_ID_BUREAU','SK_ID_PREV','index']]
 
+    # fill nan
+    train_df[feats]=fill_NA(train_df[feats])
+    test_df[feats]=fill_NA(test_df[feats])
+
     # 最初にsplitしないバージョンでモデルを推定します
     for n_fold, (train_idx, valid_idx) in enumerate(folds.split(train_df[feats], train_df['TARGET'])):
         train_x, train_y = train_df[feats].iloc[train_idx], train_df['TARGET'].iloc[train_idx]
@@ -64,15 +65,15 @@ def kfold_rf(df, num_folds, stratified = False, debug= False):
         # params from https://github.com/neptune-ml/open-solution-home-credit/blob/solution-5/configs/neptune.yaml#L62
         clf = RandomForestClassifier(
                                     n_jobs=4,
-                                    n_estimators=100,
+                                    n_estimators=500,
+                                    riterion='gini',
                                     max_features=0.2,
-                                    max_depth=8,
-                                    min_samples_leaf=2,
+                                    min_samples_split=10,
+                                    min_samples_leaf=5,
+                                    class_weight=1,
                                     random_state=int(2**n_fold)
                                     )
-
         clf.fit(train_x, train_y)
-
         oof_preds[valid_idx] = clf.predict_proba(valid_x)[:,1]
         sub_preds += clf.predict_proba(test_df[feats])[:,1] / folds.n_splits
 
