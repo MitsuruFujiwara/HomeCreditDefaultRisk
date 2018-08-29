@@ -74,7 +74,7 @@ def main():
 #    train_df = train_df.merge(oof_dnn, how='left', on='SK_ID_CURR')
 #    train_df = train_df[['SK_ID_CURR','TARGET', 'lgbm', 'xgb', 'dnn']].dropna()
     train_df = train_df[['SK_ID_CURR','TARGET', 'lgbm', 'xgb']].dropna()
-
+    """
     # 最適化
     ## 目的関数
     def func(x):
@@ -131,20 +131,23 @@ def main():
 
     sub_xgb['TARGET'] = sub_xgb['TARGET'].apply(lambda x: 0 if x < q_low_xgb else x)
     sub_xgb['TARGET'] = sub_xgb['TARGET'].apply(lambda x: 1 if x > q_high_xgb else x)
-
+    """
     # take weighted average of each prediction
     sub['lgbm'] = sub_lgbm['TARGET']
     sub['xgb'] = sub_xgb['TARGET']
 
-    sub['TARGET'] = w_bst*sub_lgbm['TARGET'] + (1 - w_bst)*sub_xgb['TARGET']
-#    sub['TARGET'] = 0.5*sub_lgbm['TARGET'] + 0.5*sub_xgb['TARGET']
+#    sub['TARGET'] = w_bst*sub_lgbm['TARGET'] + (1 - w_bst)*sub_xgb['TARGET']
+    sub['TARGET'] = 0.5*sub_lgbm['TARGET'] + 0.5*sub_xgb['TARGET']
 
     # replace values to 0 or 1 by threshold
-    sub['TARGET'] = sub['TARGET'].apply(lambda x: 0 if x < q_low_pred else x)
-    sub['TARGET'] = sub['TARGET'].apply(lambda x: 1 if x > q_high_pred else x)
+#    sub['TARGET'] = sub['TARGET'].apply(lambda x: 0 if x < q_low_pred else x)
+#    sub['TARGET'] = sub['TARGET'].apply(lambda x: 1 if x > q_high_pred else x)
 
     # save submission file
     sub[['SK_ID_CURR', 'TARGET']].to_csv('submission_blend.csv', index= False)
+
+    # local validation scoreの記録用
+    print(roc_auc_score(train_df['TARGET'], 0.5*train_df['lgbm']+0.5*train_df['xgb']))
 
 if __name__ == '__main__':
     main()
