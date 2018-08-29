@@ -104,8 +104,8 @@ def xgb_eval(gamma,
 def main():
     # clf for bayesian optimization
     clf_bo = BayesianOptimization(xgb_eval, {'gamma':(0, 1),
-                                             'max_depth': (3, 7),
-                                             'min_child_weight': (0, 45),
+                                             'max_depth': (3, 6),
+                                             'min_child_weight': (0, 40),
                                              'subsample': (0.001, 1),
                                              'colsample_bytree': (0.001, 1),
                                              'colsample_bylevel': (0.001, 1),
