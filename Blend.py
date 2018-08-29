@@ -69,11 +69,11 @@ def main():
     train_df = train_df.merge(oof_xgb, how='left', on='SK_ID_CURR')
     train_df = train_df[['SK_ID_CURR','TARGET', 'lgbm', 'xgb']].dropna()
 
+    """
     # get thresholds
     q_high_lgbm, q_low_lgbm = getZeroOneThresholds(train_df['TARGET'], train_df['lgbm'])
     q_high_xgb, q_low_xgb = getZeroOneThresholds(train_df['TARGET'], train_df['xgb'])
 
-    """
     # replace values to 0 or 1 by threshold
     train_df['lgbm'] = train_df['lgbm'].apply(lambda x: 0 if x < q_low_lgbm else x)
     train_df['lgbm'] = train_df['lgbm'].apply(lambda x: 1 if x > q_high_lgbm else x)
@@ -90,30 +90,55 @@ def main():
 
     # 最適化
     ## 目的関数
-    def func(w):
-        _pred = w * train_df['lgbm'] + (1.0-w) * train_df['xgb']
+    def func(x):
+        w = x[0]
+        q_high_lgbm_ = x[1]
+        q_low_lgbm_ = x[2]
+        q_high_xgb_ = x[3]
+        q_low_xgb_ = x[4]
+        q_high_pred_ = x[5]
+        q_low_pred_ = x[6]
+
+        lgbm_se = train_df['lgbm']
+        xgb_se = train_df['xgb']
+        lgbm_se = lgbm_se.apply(lambda x: 0 if x < q_low_lgbm_ else x)
+        lgbm_se = lgbm_se.apply(lambda x: 1 if x > q_high_lgbm_ else x)
+        xgb_se = xgb_se.apply(lambda x: 0 if x < q_low_xgb_ else x)
+        xgb_se = xgb_se.apply(lambda x: 1 if x > q_high_xgb_ else x)
+
+        _pred = w * lgbm_se + (1.0-w) * xgb_se
+        _pred = _pred.apply(lambda x: 0 if x < q_low_pred_ else x)
+        _pred = _pred.apply(lambda x: 1 if x > q_high_pred_ else x)
+
         _auc = roc_auc_score(train_df['TARGET'], _pred)
         return -1*_auc
 
 
-    bnds = np.array([[0,1]])
+    bnds = np.array([[0,1],[0.9,1],[0,0.1],[0.9,1],[0,0.1],[0.9,1],[0,0.1]])
     result = differential_evolution(func, bnds) # 微分進化法とかいう謎の強そうな最適化をやれば幸せになれるらしい
-    w_bst = result['x']
+
+    w_bst = result['x'][0]
+    q_high_lgbm = result['x'][1]
+    q_low_lgbm = result['x'][2]
+    q_high_xgb = result['x'][3]
+    q_low_xgb = result['x'][4]
+    q_high_pred = result['x'][5]
+    q_low_pred = result['x'][6]
     print(result)
     print('best w:',w_bst)
 
-    """とりあえず最後はあんまり0-1に寄せないほうが良い
-    # get thresholds
-    train_agg = w_bst*train_df['lgbm'] + (1 - w_bst)*train_df['xgb']
-    q_high_, q_low_ = getZeroOneThresholds( 
-        train_df['TARGET'], train_agg)
-    train_agg_th = train_agg.apply(lambda x: 0 if x < q_high_ else x)
-    train_agg_th = train_agg.apply(lambda x: 1 if x > q_low_ else x)
-    before_auc = roc_auc_score(train_df['TARGET'],train_agg)
-    after_auc = roc_auc_score(train_df['TARGET'],train_agg_th)
-    print(q_high_, q_low_)
-    print(before_auc,after_auc)
-    """
+    # replace values to 0 or 1 by threshold
+    train_df['lgbm'] = train_df['lgbm'].apply(lambda x: 0 if x < q_low_lgbm else x)
+    train_df['lgbm'] = train_df['lgbm'].apply(lambda x: 1 if x > q_high_lgbm else x)
+
+    sub_lgbm['TARGET'] = sub_lgbm['TARGET'].apply(lambda x: 0 if x < q_low_lgbm else x)
+    sub_lgbm['TARGET'] = sub_lgbm['TARGET'].apply(lambda x: 1 if x > q_high_lgbm else x)
+
+    train_df['xgb'] = train_df['xgb'].apply(lambda x: 0 if x < q_low_xgb else x)
+    train_df['xgb'] = train_df['xgb'].apply(lambda x: 1 if x > q_high_xgb else x)
+
+    sub_xgb['TARGET'] = sub_xgb['TARGET'].apply(lambda x: 0 if x < q_low_xgb else x)
+    sub_xgb['TARGET'] = sub_xgb['TARGET'].apply(lambda x: 1 if x > q_high_xgb else x)
 
     # take weighted average of each prediction
     sub['lgbm'] = sub_lgbm['TARGET']
@@ -121,6 +146,10 @@ def main():
 
     sub['TARGET'] = w_bst*sub_lgbm['TARGET'] + (1 - w_bst)*sub_xgb['TARGET']
 #    sub['TARGET'] = 0.5*sub_lgbm['TARGET'] + 0.5*sub_xgb['TARGET']
+
+    # replace values to 0 or 1 by threshold
+    sub['TARGET'] = sub['TARGET'].apply(lambda x: 0 if x < q_low_pred else x)
+    sub['TARGET'] = sub['TARGET'].apply(lambda x: 1 if x > q_high_pred else x)
 
     # save submission file
     sub[['SK_ID_CURR', 'TARGET']].to_csv('submission_blend.csv', index= False)
