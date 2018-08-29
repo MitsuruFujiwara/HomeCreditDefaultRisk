@@ -14,3 +14,5 @@ oof_lgbm_#46.csv
 oof_xgb_#44.csv
 submission_add_feature_lgbm_#46.csv
 submission_add_feature_xgb_#44.csv
+sample_submission.csv
+submission_blend.csv

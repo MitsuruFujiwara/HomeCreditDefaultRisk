@@ -73,6 +73,7 @@ def main():
     q_high_lgbm, q_low_lgbm = getZeroOneThresholds(train_df['TARGET'], train_df['lgbm'])
     q_high_xgb, q_low_xgb = getZeroOneThresholds(train_df['TARGET'], train_df['xgb'])
 
+    """
     # replace values to 0 or 1 by threshold
     train_df['lgbm'] = train_df['lgbm'].apply(lambda x: 0 if x < q_low_lgbm else x)
     train_df['lgbm'] = train_df['lgbm'].apply(lambda x: 1 if x > q_high_lgbm else x)
@@ -85,6 +86,7 @@ def main():
 
     sub_xgb['TARGET'] = sub_xgb['TARGET'].apply(lambda x: 0 if x < q_low_xgb else x)
     sub_xgb['TARGET'] = sub_xgb['TARGET'].apply(lambda x: 1 if x > q_high_xgb else x)
+    """
 
     # 最適化
     ## 目的関数
@@ -96,16 +98,29 @@ def main():
 
     bnds = np.array([[0,1]])
     result = differential_evolution(func, bnds) # 微分進化法とかいう謎の強そうな最適化をやれば幸せになれるらしい
-    w = result['x']
+    w_bst = result['x']
     print(result)
-    print('best w:',w)
+    print('best w:',w_bst)
+
+    """とりあえず最後はあんまり0-1に寄せないほうが良い
+    # get thresholds
+    train_agg = w_bst*train_df['lgbm'] + (1 - w_bst)*train_df['xgb']
+    q_high_, q_low_ = getZeroOneThresholds( 
+        train_df['TARGET'], train_agg)
+    train_agg_th = train_agg.apply(lambda x: 0 if x < q_high_ else x)
+    train_agg_th = train_agg.apply(lambda x: 1 if x > q_low_ else x)
+    before_auc = roc_auc_score(train_df['TARGET'],train_agg)
+    after_auc = roc_auc_score(train_df['TARGET'],train_agg_th)
+    print(q_high_, q_low_)
+    print(before_auc,after_auc)
+    """
 
     # take weighted average of each prediction
     sub['lgbm'] = sub_lgbm['TARGET']
     sub['xgb'] = sub_xgb['TARGET']
 
-#    sub['TARGET'] = w_bst[0]*sub_lgbm['TARGET'] + w_bst[1]*sub_xgb['TARGET']
-    sub['TARGET'] = 0.5*sub_lgbm['TARGET'] + 0.5*sub_xgb['TARGET']
+    sub['TARGET'] = w_bst*sub_lgbm['TARGET'] + (1 - w_bst)*sub_xgb['TARGET']
+#    sub['TARGET'] = 0.5*sub_lgbm['TARGET'] + 0.5*sub_xgb['TARGET']
 
     # save submission file
     sub[['SK_ID_CURR', 'TARGET']].to_csv('submission_blend.csv', index= False)
