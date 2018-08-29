@@ -63,21 +63,23 @@ def kfold_xgboost(df, num_folds, stratified = False, debug= False):
         xgb_test = xgb.DMatrix(valid_x,
                                label=valid_y)
 
-        # XGB parameters from https://www.kaggle.com/kailex/tidy-xgb-all-tables-0-796/code
+        # XGB parameters from https://github.com/neptune-ml/open-solution-home-credit/blob/solution-5/configs/neptune.yaml#L84
         params = {
                 'objective':'gpu:binary:logistic', # GPU parameter
                 'booster': 'gbtree',
                 'eval_metric':'auc',
                 'silent':1,
-                'eta': 0.02,
-                'max_depth': 6,
-                'min_child_weight': 0.9052,
-                'gamma': 0.0161,
-                'subsample': 0.8629,
-                'colsample_bytree': 0.0947,
-                'colsample_bylevel': 0.7517,
-                'alpha':9.3077,
-                'lambda':7.5993,
+                'eta': 0.001,
+                'max_leaves':40,
+                'max_depth': 16,
+                'max_bin': 255,
+                'subsample': 0.5,
+                'colsample_bytree': 0.5,
+                'colsample_bylevel': 1,
+                'min_child_weight': 4,
+                'lambda':0.001,
+                'alpha':0.001,
+                'scale_pos_weight':1,
                 'tree_method': 'gpu_hist', # GPU parameter
                 'predictor': 'gpu_predictor', # GPU parameter
                 'seed':int(2**n_fold)
@@ -88,7 +90,7 @@ def kfold_xgboost(df, num_folds, stratified = False, debug= False):
                         xgb_train,
                         num_boost_round=10000,
                         evals=[(xgb_train,'train'),(xgb_test,'test')],
-                        early_stopping_rounds= 200,
+                        early_stopping_rounds= 100,
                         verbose_eval=100
                         )
 
