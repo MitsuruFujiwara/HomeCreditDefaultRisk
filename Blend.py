@@ -50,43 +50,30 @@ def main():
     # load submission files
     sub = pd.read_csv('sample_submission.csv')
     sub_lgbm = pd.read_csv('submission_add_feature_lgbm_#46.csv')
-    sub_xgb = pd.read_csv('submission_add_feature_xgb_#44.csv')
+    sub_xgb = pd.read_csv('submission_add_feature_xgb_best.csv')
+#    sub_dnn = pd.read_csv('submission_add_feature_dnn.csv')
 
     # load out of fold data
     train_df = pd.read_csv('application_train.csv')
     oof_lgbm = pd.read_csv('oof_lgbm_#46.csv')
-    oof_xgb = pd.read_csv('oof_xgb_#44.csv')
+    oof_xgb = pd.read_csv('oof_xgb_best.csv')
+#    oof_dnn = pd.read_csv('oof_dnn.csv')
 
     # change index & columns
     oof_lgbm.columns=['SK_ID_CURR', 'lgbm']
     oof_xgb.columns=['SK_ID_CURR', 'xgb']
+#    oof_dnn.columns=['SK_ID_CURR', 'dnn']
     oof_lgbm.index=oof_lgbm['SK_ID_CURR']
     oof_xgb.index=oof_xgb['SK_ID_CURR']
+#    oof_dnn.index=oof_xgb['SK_ID_CURR']
     train_df.index=train_df['SK_ID_CURR']
 
     # merge dfs
     train_df = train_df.merge(oof_lgbm, how='left', on='SK_ID_CURR')
     train_df = train_df.merge(oof_xgb, how='left', on='SK_ID_CURR')
+#    train_df = train_df.merge(oof_dnn, how='left', on='SK_ID_CURR')
+#    train_df = train_df[['SK_ID_CURR','TARGET', 'lgbm', 'xgb', 'dnn']].dropna()
     train_df = train_df[['SK_ID_CURR','TARGET', 'lgbm', 'xgb']].dropna()
-
-    """
-    # get thresholds
-    q_high_lgbm, q_low_lgbm = getZeroOneThresholds(train_df['TARGET'], train_df['lgbm'])
-    q_high_xgb, q_low_xgb = getZeroOneThresholds(train_df['TARGET'], train_df['xgb'])
-
-    # replace values to 0 or 1 by threshold
-    train_df['lgbm'] = train_df['lgbm'].apply(lambda x: 0 if x < q_low_lgbm else x)
-    train_df['lgbm'] = train_df['lgbm'].apply(lambda x: 1 if x > q_high_lgbm else x)
-
-    sub_lgbm['TARGET'] = sub_lgbm['TARGET'].apply(lambda x: 0 if x < q_low_lgbm else x)
-    sub_lgbm['TARGET'] = sub_lgbm['TARGET'].apply(lambda x: 1 if x > q_high_lgbm else x)
-
-    train_df['xgb'] = train_df['xgb'].apply(lambda x: 0 if x < q_low_xgb else x)
-    train_df['xgb'] = train_df['xgb'].apply(lambda x: 1 if x > q_high_xgb else x)
-
-    sub_xgb['TARGET'] = sub_xgb['TARGET'].apply(lambda x: 0 if x < q_low_xgb else x)
-    sub_xgb['TARGET'] = sub_xgb['TARGET'].apply(lambda x: 1 if x > q_high_xgb else x)
-    """
 
     # 最適化
     ## 目的関数
@@ -98,13 +85,18 @@ def main():
         q_low_xgb_ = x[4]
         q_high_pred_ = x[5]
         q_low_pred_ = x[6]
+#        q_high_dnn_ = x[7]
+#        q_low_dnn_ = x[8]
 
         lgbm_se = train_df['lgbm']
         xgb_se = train_df['xgb']
+#        dnn_se = train_df['dnn']
         lgbm_se = lgbm_se.apply(lambda x: 0 if x < q_low_lgbm_ else x)
         lgbm_se = lgbm_se.apply(lambda x: 1 if x > q_high_lgbm_ else x)
         xgb_se = xgb_se.apply(lambda x: 0 if x < q_low_xgb_ else x)
         xgb_se = xgb_se.apply(lambda x: 1 if x > q_high_xgb_ else x)
+#        dnn_se = dnn_se.apply(lambda x: 0 if x < q_low_dnn_ else x)
+#        dnn_se = dnn_se.apply(lambda x: 1 if x > q_high_dnn_ else x)
 
         _pred = w * lgbm_se + (1.0-w) * xgb_se
         _pred = _pred.apply(lambda x: 0 if x < q_low_pred_ else x)
@@ -113,8 +105,8 @@ def main():
         _auc = roc_auc_score(train_df['TARGET'], _pred)
         return -1*_auc
 
-
     bnds = np.array([[0,1],[0.9,1],[0,0.1],[0.9,1],[0,0.1],[0.9,1],[0,0.1]])
+#    bnds = np.array([[0,1],[0.9,1],[0,0.1],[0.9,1],[0,0.1],[0.9,1],[0,0.1],[0.9,1],[0,0.1]])
     result = differential_evolution(func, bnds) # 微分進化法とかいう謎の強そうな最適化をやれば幸せになれるらしい
 
     w_bst = result['x'][0]
