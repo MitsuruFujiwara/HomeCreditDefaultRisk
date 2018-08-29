@@ -8,7 +8,7 @@ from sklearn.model_selection import KFold, StratifiedKFold
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from scipy.optimize import minimize_scalar
+from scipy.optimize import minimize_scalar, minimize, differential_evolution
 
 """
 複数モデルのoutputをブレンドして最終的なsubmitファイルを生成するスクリプト。
@@ -137,7 +137,8 @@ def main():
         return -1*_auc
 
 
-    result = minimize_scalar(fun=func, bounds=(0, 1), method="bounded")
+    bnds = np.array([[0,1]])
+    result = differential_evolution(func, bnds) # 微分進化法とかいう謎の強そうな最適化をやれば幸せになれるらしい
     w = result['x']
     print(result)
     print('best w:',w)
