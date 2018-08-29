@@ -18,31 +18,31 @@ from scipy.optimize import minimize_scalar, minimize, differential_evolution
 def getZeroOneThresholds(act, pred):
 
     # get optimal low
-    def optLow(_q):
+    auc_bst = 0.0
+    for _q in np.arange(0, 0.10001, 0.0001):
         _threshold = pred.quantile(_q)
         _pred = pred.apply(lambda x: 0 if x < _threshold else x)
         _auc = roc_auc_score(act, _pred)
-        return -1*_auc
-
-    _result = minimize_scalar(fun=optLow, bounds=(0, 0.1), method="bounded")
-    q_low = _result['x']
-    print(_result)
-    print('best q_low:',q_low)
+        if _auc > auc_bst:
+            auc_bst = _auc
+            q_low = _q
+        print("q: {:.4f}, auc: {:.10f}".format(_q, _auc))
+    print("best q_low: {:.4f}, best auc: {:.10f}".format(q_low, auc_bst))
 
     # set low threshold
     pred = pred.apply(lambda x: 0 if x < q_low else x)
 
     # get optimal high
-    def optHigh(_q):
+    auc_bst = 0.0
+    for _q in np.arange(0.9, 1.0001, 0.0001):
         _threshold = pred.quantile(_q)
         _pred = pred.apply(lambda x: 1 if x > _threshold else x)
         _auc = roc_auc_score(act, _pred)
-        return -1*_auc
-
-    _result = minimize_scalar(fun=optHigh, bounds=(0.9, 1), method="bounded")
-    q_high = _result['x']
-    print(_result)
-    print('best q_high:',q_high)
+        if _auc > auc_bst:
+            auc_bst = _auc
+            q_high = _q
+        print("q: {:.4f}, auc: {:.10f}".format(_q, _auc))
+    print("best q_high: {:.4f}, best auc: {:.10f}".format(q_high, auc_bst))
 
     return q_high, q_low
 
@@ -132,12 +132,22 @@ def main():
     sub_xgb['TARGET'] = sub_xgb['TARGET'].apply(lambda x: 0 if x < q_low_xgb else x)
     sub_xgb['TARGET'] = sub_xgb['TARGET'].apply(lambda x: 1 if x > q_high_xgb else x)
     """
+
     # take weighted average of each prediction
     sub['lgbm'] = sub_lgbm['TARGET']
     sub['xgb'] = sub_xgb['TARGET']
 
+    # out of foldsの予測値
+    pred_oof = 0.5*train_df['lgbm']+0.5*train_df['xgb']
+
+    # 最適な閾値を取得
+    q_high, q_low = getZeroOneThresholds(train_df['TARGET'], pred_oof)
+
 #    sub['TARGET'] = w_bst*sub_lgbm['TARGET'] + (1 - w_bst)*sub_xgb['TARGET']
     sub['TARGET'] = 0.5*sub_lgbm['TARGET'] + 0.5*sub_xgb['TARGET']
+
+    sub['TARGET'] = sub['TARGET'].apply(lambda x: 0 if x < q_low else x)
+    sub['TARGET'] = sub['TARGET'].apply(lambda x: 1 if x > q_high else x)
 
     # replace values to 0 or 1 by threshold
 #    sub['TARGET'] = sub['TARGET'].apply(lambda x: 0 if x < q_low_pred else x)
