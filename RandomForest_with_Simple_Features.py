@@ -1,4 +1,6 @@
 
+# cv: 0.747635
+
 import numpy as np
 import pandas as pd
 import gc
@@ -62,15 +64,16 @@ def kfold_rf(df, num_folds, stratified = False, debug= False):
         train_x, train_y = train_df[feats].iloc[train_idx], train_df['TARGET'].iloc[train_idx]
         valid_x, valid_y = train_df[feats].iloc[valid_idx], train_df['TARGET'].iloc[valid_idx]
 
-        # params from https://github.com/neptune-ml/open-solution-home-credit/blob/solution-5/configs/neptune.yaml#L62
+        # params from https://github.com/neptune-ml/open-solution-home-credit/blob/solution-5/configs/neptune.yaml#L104
         clf = RandomForestClassifier(
                                     n_jobs=4,
                                     n_estimators=500,
-                                    riterion='gini',
+                                    criterion='gini',
                                     max_features=0.2,
                                     min_samples_split=10,
                                     min_samples_leaf=5,
-                                    class_weight=1,
+#                                    class_weight=1,
+                                    verbose=3,
                                     random_state=int(2**n_fold)
                                     )
         clf.fit(train_x, train_y)
@@ -116,76 +119,10 @@ def display_importances(feature_importance_df_, outputpath, csv_outputpath):
 
 def main(debug = False, use_csv=False):
     num_rows = 10000 if debug else None
-    if use_csv:
-        # TODO # appデータだけうまく読み込めませんでした
-#        df = pd.read_csv('APP.csv', index_col=0)
-        df = application_train_test(num_rows)
-    else:
-        df = application_train_test(num_rows)
-        df.to_csv('APP.csv', index=False)
-    with timer("Process bureau and bureau_balance"):
-        if use_csv:
-            if os.environ['USER'] == 'daiyamita':
-                pass
-            else:
-                bureau = pd.read_csv('BUREAU.csv', index_col='SK_ID_CURR')
-        else:
-            bureau = bureau_and_balance(num_rows)
-            if os.environ['USER'] == 'daiyamita':
-                pass
-            else:
-                bureau.to_csv('BUREAU.csv')
-        print("Bureau df shape:", bureau.shape)
-        df = df.join(bureau, how='left', on='SK_ID_CURR')
-        del bureau
-        gc.collect()
-    with timer("Process previous_applications"):
-        if use_csv:
-            prev = pd.read_csv('PREV.csv', index_col='SK_ID_CURR')
-        else:
-            prev = previous_applications(num_rows)
-            prev.to_csv('PREV.csv')
-        print("Previous applications df shape:", prev.shape)
-        df = df.join(prev, how='left', on='SK_ID_CURR')
-        # get_amt_factorここで使います
-        prev_add = get_amt_factor(df,num_rows)
-        df = df.join(prev_add, how='left', on='SK_ID_CURR')
-        del prev, prev_add
-        gc.collect()
-    with timer("Process POS-CASH balance"):
-        if use_csv:
-            pos = pd.read_csv('POS.csv', index_col='SK_ID_CURR')
-        else:
-            pos = pos_cash(num_rows)
-            pos.to_csv('POS.csv')
-        print("Pos-cash balance df shape:", pos.shape)
-        df = df.join(pos, how='left', on='SK_ID_CURR')
-        del pos
-        gc.collect()
-    with timer("Process installments payments"):
-        if use_csv:
-            ins = pd.read_csv('INS.csv', index_col='SK_ID_CURR')
-        else:
-            ins = installments_payments(num_rows)
-            ins.to_csv('INS.csv')
-        print("Installments payments df shape:", ins.shape)
-        df = df.join(ins, how='left', on='SK_ID_CURR')
-        del ins
-        gc.collect()
-    with timer("Process credit card balance"):
-        if use_csv:
-            cc = pd.read_csv('CC.csv', index_col='SK_ID_CURR')
-        else:
-            cc = credit_card_balance(num_rows)
-            cc.to_csv('CC.csv')
-        print("Credit card balance df shape:", cc.shape)
-        df = df.join(cc, how='left', on='SK_ID_CURR')
-        del cc
-        gc.collect()
-    with timer("Process Additional Features"):
-        df = getAdditionalFeatures(df)
+    with timer("Process Read CSV"):
+        df = pd.read_csv('df_selected.csv', nrows=num_rows)
     with timer("Run Random Forest with kfold"):
-        feat_importance = kfold_rf(df, num_folds= 10, stratified=True, debug= debug)
+        feat_importance = kfold_rf(df, num_folds= 5, stratified=True, debug= debug)
         display_importances(feat_importance ,'rf_importances.png', 'feature_importance_rf.csv')
 
 if __name__ == "__main__":
@@ -195,4 +132,4 @@ if __name__ == "__main__":
         if os.environ['USER'] == 'daiyamita':
             main(debug = True ,use_csv=False)
         else:
-            main(debug = True, use_csv=True)
+            main(debug = False, use_csv=True)
