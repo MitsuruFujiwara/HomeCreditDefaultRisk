@@ -149,13 +149,13 @@ def main(debug = False, use_csv=False):
         df.to_csv('APP.csv', index=False)
     with timer("Process bureau and bureau_balance"):
         if use_csv:
-            if os.environ['USER'] == 'daiyamita':
+            if os.environ['USER'] == '':
                 pass
             else:
                 bureau = pd.read_csv('BUREAU.csv', index_col='SK_ID_CURR')
         else:
             bureau = bureau_and_balance(num_rows)
-            if os.environ['USER'] == 'daiyamita':
+            if os.environ['USER'] == '':
                 pass
             else:
                 bureau.to_csv('BUREAU.csv')
